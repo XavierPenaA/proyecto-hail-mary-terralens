@@ -1,0 +1,17 @@
+# Environment variables and credentials (NEVER COMMIT)
+.env
+*.env
+
+# Python bytecode & caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.venv/
+venv/
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -1,0 +1,772 @@
+{
+  "pipeline_version": "TerraLens ML Suite v2.1 (Offline Spatio-Temporal Cube Pipeline)",
+  "trained_at_utc": "2026-11-14 06:34:10 UTC",
+  "total_training_seconds": 205.47,
+  "stage_a_cube_cv_seconds": 140.25,
+  "stage_b_regional_ensemble_seconds": 57.85,
+  "artifact_file": "models/terralens_ml_suite.joblib",
+  "artifact_size_mb": 26.68,
+  "dataset_summary": {
+    "ecuador_grid_cells": 96,
+    "benchmark_regions": 11,
+    "total_spatial_nodes": 107,
+    "temporal_coverage": "1981-01 to 2025-12 (540 monthly steps)",
+    "cube_lagged_samples": 50208,
+    "regional_lagged_samples": 5489,
+    "total_observations_trained": 55697,
+    "modis_250m_passes": 575,
+    "meteomatics_1km_records": 308
+  },
+  "cube_model_leaderboard": [
+    {
+      "model_name": "HistGradientBoostingRegressor",
+      "dataset": "Ecuador Cube (Train/Val 1981-2018: 43,296 | Locked Test 2019-2024: 6,912)",
+      "cv_strategy": "5-Fold TimeSeriesSplit (1981\u20132018) + Unseen Future Holdout Test (2019\u20132024)",
+      "cv_r2_mean": 0.9214,
+      "cv_r2_std": 0.0169,
+      "cv_rmse_mean": 0.2587,
+      "cv_mae_mean": 0.1849,
+      "test_r2": 0.9191,
+      "test_rmse": 0.2308,
+      "test_mae": 0.17,
+      "fold_r2_scores": [
+        0.8976,
+        0.9213,
+        0.9161,
+        0.9503,
+        0.9219
+      ],
+      "train_seconds": 63.83
+    },
+    {
+      "model_name": "RandomForestRegressor",
+      "dataset": "Ecuador Cube (Train/Val 1981-2018: 43,296 | Locked Test 2019-2024: 6,912)",
+      "cv_strategy": "5-Fold TimeSeriesSplit (1981\u20132018) + Unseen Future Holdout Test (2019\u20132024)",
+      "cv_r2_mean": 0.9073,
+      "cv_r2_std": 0.0241,
+      "cv_rmse_mean": 0.2793,
+      "cv_mae_mean": 0.1991,
+      "test_r2": 0.9019,
+      "test_rmse": 0.2542,
+      "test_mae": 0.186,
+      "fold_r2_scores": [
+        0.8707,
+        0.8952,
+        0.9162,
+        0.9439,
+        0.9102
+      ],
+      "train_seconds": 16.44
+    },
+    {
+      "model_name": "GradientBoostingRegressor",
+      "dataset": "Ecuador Cube (Train/Val 1981-2018: 43,296 | Locked Test 2019-2024: 6,912)",
+      "cv_strategy": "5-Fold TimeSeriesSplit (1981\u20132018) + Unseen Future Holdout Test (2019\u20132024)",
+      "cv_r2_mean": 0.9151,
+      "cv_r2_std": 0.0196,
+      "cv_rmse_mean": 0.2679,
+      "cv_mae_mean": 0.1975,
+      "test_r2": 0.8989,
+      "test_rmse": 0.2579,
+      "test_mae": 0.1909,
+      "fold_r2_scores": [
+        0.8853,
+        0.9194,
+        0.9263,
+        0.9421,
+        0.9024
+      ],
+      "train_seconds": 59.73
+    },
+    {
+      "model_name": "RidgeBaseline",
+      "dataset": "Ecuador Cube (Train/Val 1981-2018: 43,296 | Locked Test 2019-2024: 6,912)",
+      "cv_strategy": "5-Fold TimeSeriesSplit (1981\u20132018) + Unseen Future Holdout Test (2019\u20132024)",
+      "cv_r2_mean": 0.9147,
+      "cv_r2_std": 0.0224,
+      "cv_rmse_mean": 0.2673,
+      "cv_mae_mean": 0.1971,
+      "test_r2": 0.8907,
+      "test_rmse": 0.2682,
+      "test_mae": 0.1966,
+      "fold_r2_scores": [
+        0.8828,
+        0.9175,
+        0.9314,
+        0.9446,
+        0.897
+      ],
+      "train_seconds": 0.13
+    }
+  ],
+  "cube_permutation_importance": [
+    {
+      "feature": "GWET_lag1",
+      "importance_mean": 0.7688,
+      "importance_std": 0.0087
+    },
+    {
+      "feature": "PREC_z",
+      "importance_mean": 0.1421,
+      "importance_std": 0.0023
+    },
+    {
+      "feature": "PREC_lag1",
+      "importance_mean": 0.0347,
+      "importance_std": 0.0008
+    },
+    {
+      "feature": "PREC_roll3",
+      "importance_mean": 0.0259,
+      "importance_std": 0.0011
+    },
+    {
+      "feature": "T2M_z",
+      "importance_mean": 0.0252,
+      "importance_std": 0.0006
+    },
+    {
+      "feature": "GWET_lag2",
+      "importance_mean": 0.0149,
+      "importance_std": 0.0009
+    },
+    {
+      "feature": "lat",
+      "importance_mean": 0.0143,
+      "importance_std": 0.0007
+    },
+    {
+      "feature": "cos_m",
+      "importance_mean": 0.0127,
+      "importance_std": 0.0009
+    },
+    {
+      "feature": "PREC_lag2",
+      "importance_mean": 0.0104,
+      "importance_std": 0.0004
+    },
+    {
+      "feature": "lon",
+      "importance_mean": 0.0077,
+      "importance_std": 0.0003
+    },
+    {
+      "feature": "elev",
+      "importance_mean": 0.0038,
+      "importance_std": 0.0003
+    },
+    {
+      "feature": "sin_m",
+      "importance_mean": 0.0032,
+      "importance_std": 0.0004
+    },
+    {
+      "feature": "T2M_lag2",
+      "importance_mean": 0.0019,
+      "importance_std": 0.0003
+    },
+    {
+      "feature": "T2M_lag1",
+      "importance_mean": 0.0017,
+      "importance_std": 0.0003
+    },
+    {
+      "feature": "PREC_roll6",
+      "importance_mean": 0.0011,
+      "importance_std": 0.0002
+    },
+    {
+      "feature": "PREC_lag3",
+      "importance_mean": 0.001,
+      "importance_std": 0.0001
+    }
+  ],
+  "regional_telemetry": {
+    "EC_Coast_Guayas": {
+      "region_id": "EC_Coast_Guayas",
+      "region_name": "Ecuador Pacific Coast (Guayas / El Oro)",
+      "n_samples": 499,
+      "n_train_val": 415,
+      "n_test_holdout": 84,
+      "n_features": 17,
+      "consensus_anomalies": 26,
+      "driver_r2_full": 0.962,
+      "driver_test_r2": 0.5491,
+      "driver_test_rmse": 0.3313,
+      "driver_cv_r2_mean": 0.7908,
+      "driver_cv_rmse_mean": 0.3654,
+      "top_drivers": [
+        {
+          "feature": "PREC_roll3_z",
+          "importance": 0.841
+        },
+        {
+          "feature": "RH2M_z",
+          "importance": 0.1245
+        },
+        {
+          "feature": "sin_m",
+          "importance": 0.0387
+        },
+        {
+          "feature": "PRECTOTCORR_z",
+          "importance": 0.0144
+        },
+        {
+          "feature": "PRECTOTCORR_lag2",
+          "importance": 0.0111
+        },
+        {
+          "feature": "cos_m",
+          "importance": 0.0089
+        }
+      ],
+      "silhouette_by_k": {
+        "2": 0.4268,
+        "3": 0.3427,
+        "4": 0.2567,
+        "5": 0.2597
+      },
+      "optimal_k": 2,
+      "best_silhouette": 0.4268,
+      "train_seconds": 5.39
+    },
+    "EC_Andes_Paute": {
+      "region_id": "EC_Andes_Paute",
+      "region_name": "Southern Ecuadorian Andes (Paute / Mazar Basin)",
+      "n_samples": 499,
+      "n_train_val": 415,
+      "n_test_holdout": 84,
+      "n_features": 17,
+      "consensus_anomalies": 24,
+      "driver_r2_full": 0.9719,
+      "driver_test_r2": 0.7861,
+      "driver_test_rmse": 0.2834,
+      "driver_cv_r2_mean": 0.7807,
+      "driver_cv_rmse_mean": 0.453,
+      "top_drivers": [
+        {
+          "feature": "PREC_roll6_z",
+          "importance": 0.9593
+        },
+        {
+          "feature": "RH2M_roll3_z",
+          "importance": 0.1156
+        },
+        {
+          "feature": "PREC_roll3_z",
+          "importance": 0.0119
+        },
+        {
+          "feature": "PRECTOTCORR_lag1",
+          "importance": 0.0113
+        },
+        {
+          "feature": "cos_m",
+          "importance": 0.0036
+        },
+        {
+          "feature": "ALLSKY_SFC_SW_DWN_z",
+          "importance": 0.0024
+        }
+      ],
+      "silhouette_by_k": {
+        "2": 0.3532,
+        "3": 0.2335,
+        "4": 0.2066,
+        "5": 0.1806
+      },
+      "optimal_k": 2,
+      "best_silhouette": 0.3532,
+      "train_seconds": 5.11
+    },
+    "EC_Andes_Quito": {
+      "region_id": "EC_Andes_Quito",
+      "region_name": "Northern Ecuadorian Andes (Quito / Pichincha)",
+      "n_samples": 499,
+      "n_train_val": 415,
+      "n_test_holdout": 84,
+      "n_features": 17,
+      "consensus_anomalies": 21,
+      "driver_r2_full": 0.9391,
+      "driver_test_r2": 0.3526,
+      "driver_test_rmse": 0.4996,
+      "driver_cv_r2_mean": 0.0785,
+      "driver_cv_rmse_mean": 0.6852,
+      "top_drivers": [
+        {
+          "feature": "PREC_roll6_z",
+          "importance": 0.6655
+        },
+        {
+          "feature": "RH2M_roll3_z",
+          "importance": 0.1013
+        },
+        {
+          "feature": "PREC_roll3_z",
+          "importance": 0.0136
+        },
+        {
+          "feature": "ONI",
+          "importance": 0.0072
+        },
+        {
+          "feature": "PRECTOTCORR_lag2",
+          "importance": 0.0038
+        },
+        {
+          "feature": "ONI_lag1",
+          "importance": 0.0027
+        }
+      ],
+      "silhouette_by_k": {
+        "2": 0.2789,
+        "3": 0.2062,
+        "4": 0.207,
+        "5": 0.2114
+      },
+      "optimal_k": 2,
+      "best_silhouette": 0.2789,
+      "train_seconds": 5.14
+    },
+    "EC_Amazon_Napo": {
+      "region_id": "EC_Amazon_Napo",
+      "region_name": "Ecuadorian Amazon Foothills (Sucumb\u00edos / Napo)",
+      "n_samples": 499,
+      "n_train_val": 415,
+      "n_test_holdout": 84,
+      "n_features": 17,
+      "consensus_anomalies": 24,
+      "driver_r2_full": 0.9843,
+      "driver_test_r2": 0.8995,
+      "driver_test_rmse": 0.2418,
+      "driver_cv_r2_mean": 0.7697,
+      "driver_cv_rmse_mean": 0.3445,
+      "top_drivers": [
+        {
+          "feature": "RH2M_z",
+          "importance": 0.1849
+        },
+        {
+          "feature": "RH2M_roll3_z",
+          "importance": 0.1192
+        },
+        {
+          "feature": "PREC_roll3_z",
+          "importance": 0.104
+        },
+        {
+          "feature": "PREC_roll6_z",
+          "importance": 0.0404
+        },
+        {
+          "feature": "cos_m",
+          "importance": 0.0031
+        },
+        {
+          "feature": "ALLSKY_SFC_SW_DWN_z",
+          "importance": 0.001
+        }
+      ],
+      "silhouette_by_k": {
+        "2": 0.3784,
+        "3": 0.3303,
+        "4": 0.27,
+        "5": 0.2547
+      },
+      "optimal_k": 2,
+      "best_silhouette": 0.3784,
+      "train_seconds": 5.12
+    },
+    "EC_Galapagos": {
+      "region_id": "EC_Galapagos",
+      "region_name": "Gal\u00e1pagos Islands (Santa Cruz)",
+      "n_samples": 499,
+      "n_train_val": 415,
+      "n_test_holdout": 84,
+      "n_features": 17,
+      "consensus_anomalies": 25,
+      "driver_r2_full": 0.9216,
+      "driver_test_r2": 0.2087,
+      "driver_test_rmse": 0.1537,
+      "driver_cv_r2_mean": 0.2812,
+      "driver_cv_rmse_mean": 0.4234,
+      "top_drivers": [
+        {
+          "feature": "PREC_roll3_z",
+          "importance": 2.9196
+        },
+        {
+          "feature": "sin_m",
+          "importance": 2.4344
+        },
+        {
+          "feature": "cos_m",
+          "importance": 0.1364
+        },
+        {
+          "feature": "T2M_roll3_z",
+          "importance": 0.1142
+        },
+        {
+          "feature": "T2M_z",
+          "importance": 0.1045
+        },
+        {
+          "feature": "PRECTOTCORR_z",
+          "importance": 0.1013
+        }
+      ],
+      "silhouette_by_k": {
+        "2": 0.4654,
+        "3": 0.2498,
+        "4": 0.1973,
+        "5": 0.1951
+      },
+      "optimal_k": 2,
+      "best_silhouette": 0.4654,
+      "train_seconds": 5.22
+    },
+    "BR_Amazon_Manaus": {
+      "region_id": "BR_Amazon_Manaus",
+      "region_name": "Central Amazon Basin (Manaus, Brazil)",
+      "n_samples": 499,
+      "n_train_val": 415,
+      "n_test_holdout": 84,
+      "n_features": 17,
+      "consensus_anomalies": 24,
+      "driver_r2_full": 0.9565,
+      "driver_test_r2": 0.8065,
+      "driver_test_rmse": 0.6315,
+      "driver_cv_r2_mean": 0.6018,
+      "driver_cv_rmse_mean": 0.5089,
+      "top_drivers": [
+        {
+          "feature": "PREC_roll3_z",
+          "importance": 0.5252
+        },
+        {
+          "feature": "PREC_roll6_z",
+          "importance": 0.1987
+        },
+        {
+          "feature": "RH2M_roll3_z",
+          "importance": 0.035
+        },
+        {
+          "feature": "RH2M_lag1",
+          "importance": 0.0109
+        },
+        {
+          "feature": "cos_m",
+          "importance": 0.0108
+        },
+        {
+          "feature": "RH2M_z",
+          "importance": 0.009
+        }
+      ],
+      "silhouette_by_k": {
+        "2": 0.3544,
+        "3": 0.2764,
+        "4": 0.2171,
+        "5": 0.2173
+      },
+      "optimal_k": 2,
+      "best_silhouette": 0.3544,
+      "train_seconds": 5.26
+    },
+    "BR_Pantanal": {
+      "region_id": "BR_Pantanal",
+      "region_name": "Brazilian Pantanal Tropical Wetland",
+      "n_samples": 499,
+      "n_train_val": 415,
+      "n_test_holdout": 84,
+      "n_features": 17,
+      "consensus_anomalies": 22,
+      "driver_r2_full": 0.9813,
+      "driver_test_r2": 0.8413,
+      "driver_test_rmse": 0.1564,
+      "driver_cv_r2_mean": 0.7116,
+      "driver_cv_rmse_mean": 0.4258,
+      "top_drivers": [
+        {
+          "feature": "RH2M_z",
+          "importance": 0.498
+        },
+        {
+          "feature": "PREC_roll3_z",
+          "importance": 0.1216
+        },
+        {
+          "feature": "sin_m",
+          "importance": 0.1168
+        },
+        {
+          "feature": "PRECTOTCORR_z",
+          "importance": 0.056
+        },
+        {
+          "feature": "cos_m",
+          "importance": 0.0329
+        },
+        {
+          "feature": "PRECTOTCORR_lag1",
+          "importance": 0.0052
+        }
+      ],
+      "silhouette_by_k": {
+        "2": 0.3834,
+        "3": 0.3603,
+        "4": 0.2889,
+        "5": 0.2548
+      },
+      "optimal_k": 2,
+      "best_silhouette": 0.3834,
+      "train_seconds": 5.21
+    },
+    "PE_Altiplano": {
+      "region_id": "PE_Altiplano",
+      "region_name": "Peruvian-Bolivian Altiplano (Lake Titicaca)",
+      "n_samples": 499,
+      "n_train_val": 415,
+      "n_test_holdout": 84,
+      "n_features": 17,
+      "consensus_anomalies": 19,
+      "driver_r2_full": 0.9045,
+      "driver_test_r2": 0.4466,
+      "driver_test_rmse": 0.68,
+      "driver_cv_r2_mean": 0.4216,
+      "driver_cv_rmse_mean": 0.5621,
+      "top_drivers": [
+        {
+          "feature": "PREC_roll6_z",
+          "importance": 1.1392
+        },
+        {
+          "feature": "PREC_roll3_z",
+          "importance": 0.0863
+        },
+        {
+          "feature": "RH2M_roll3_z",
+          "importance": 0.0531
+        },
+        {
+          "feature": "cos_m",
+          "importance": 0.0179
+        },
+        {
+          "feature": "PRECTOTCORR_lag3",
+          "importance": 0.0035
+        },
+        {
+          "feature": "T2M_z",
+          "importance": 0.0027
+        }
+      ],
+      "silhouette_by_k": {
+        "2": 0.2683,
+        "3": 0.1971,
+        "4": 0.1971,
+        "5": 0.2166
+      },
+      "optimal_k": 2,
+      "best_silhouette": 0.2683,
+      "train_seconds": 5.33
+    },
+    "US_Mississippi_Delta": {
+      "region_id": "US_Mississippi_Delta",
+      "region_name": "Mississippi River Delta (Louisiana, USA \u2014 Acker Ref.)",
+      "n_samples": 499,
+      "n_train_val": 415,
+      "n_test_holdout": 84,
+      "n_features": 17,
+      "consensus_anomalies": 22,
+      "driver_r2_full": 0.9532,
+      "driver_test_r2": 0.8228,
+      "driver_test_rmse": 0.3994,
+      "driver_cv_r2_mean": 0.7775,
+      "driver_cv_rmse_mean": 0.4358,
+      "top_drivers": [
+        {
+          "feature": "PREC_roll3_z",
+          "importance": 0.3962
+        },
+        {
+          "feature": "PREC_roll6_z",
+          "importance": 0.271
+        },
+        {
+          "feature": "PRECTOTCORR_lag1",
+          "importance": 0.0205
+        },
+        {
+          "feature": "RH2M_roll3_z",
+          "importance": 0.0137
+        },
+        {
+          "feature": "T2M_z",
+          "importance": 0.0081
+        },
+        {
+          "feature": "T2M_roll3_z",
+          "importance": 0.0052
+        }
+      ],
+      "silhouette_by_k": {
+        "2": 0.2956,
+        "3": 0.201,
+        "4": 0.1997,
+        "5": 0.1858
+      },
+      "optimal_k": 2,
+      "best_silhouette": 0.2956,
+      "train_seconds": 5.29
+    },
+    "US_Arctic_Barrow": {
+      "region_id": "US_Arctic_Barrow",
+      "region_name": "Arctic Coastal Plain (Utqia\u0121vik / Barrow, Alaska)",
+      "n_samples": 499,
+      "n_train_val": 415,
+      "n_test_holdout": 84,
+      "n_features": 17,
+      "consensus_anomalies": 23,
+      "driver_r2_full": 0.7066,
+      "driver_test_r2": -5.977,
+      "driver_test_rmse": 1.1866,
+      "driver_cv_r2_mean": -1.4699,
+      "driver_cv_rmse_mean": 1.1704,
+      "top_drivers": [
+        {
+          "feature": "PREC_roll6_z",
+          "importance": 1.358
+        },
+        {
+          "feature": "sin_m",
+          "importance": 0.4333
+        },
+        {
+          "feature": "PREC_roll3_z",
+          "importance": 0.2628
+        },
+        {
+          "feature": "PRECTOTCORR_lag1",
+          "importance": 0.1895
+        },
+        {
+          "feature": "RH2M_roll3_z",
+          "importance": 0.1655
+        },
+        {
+          "feature": "ONI",
+          "importance": 0.1545
+        }
+      ],
+      "silhouette_by_k": {
+        "2": 0.2592,
+        "3": 0.2238,
+        "4": 0.2028,
+        "5": 0.1992
+      },
+      "optimal_k": 2,
+      "best_silhouette": 0.2592,
+      "train_seconds": 5.42
+    },
+    "ES_Med_Almeria": {
+      "region_id": "ES_Med_Almeria",
+      "region_name": "Western Mediterranean Basin (Almer\u00eda, Spain)",
+      "n_samples": 499,
+      "n_train_val": 415,
+      "n_test_holdout": 84,
+      "n_features": 17,
+      "consensus_anomalies": 22,
+      "driver_r2_full": 0.8738,
+      "driver_test_r2": 0.3929,
+      "driver_test_rmse": 0.7137,
+      "driver_cv_r2_mean": 0.549,
+      "driver_cv_rmse_mean": 0.6359,
+      "top_drivers": [
+        {
+          "feature": "PREC_roll3_z",
+          "importance": 0.289
+        },
+        {
+          "feature": "RH2M_z",
+          "importance": 0.1007
+        },
+        {
+          "feature": "PRECTOTCORR_z",
+          "importance": 0.0569
+        },
+        {
+          "feature": "cos_m",
+          "importance": 0.0147
+        },
+        {
+          "feature": "sin_m",
+          "importance": 0.014
+        },
+        {
+          "feature": "PRECTOTCORR_lag2",
+          "importance": 0.0125
+        }
+      ],
+      "silhouette_by_k": {
+        "2": 0.309,
+        "3": 0.2382,
+        "4": 0.1876,
+        "5": 0.179
+      },
+      "optimal_k": 2,
+      "best_silhouette": 0.309,
+      "train_seconds": 5.35
+    }
+  },
+  "modis_250m_coupling": {
+    "EC_Andes_Paute": {
+      "n_satellite_passes": 115,
+      "n_matched_months": 60,
+      "corr_ndvi_gwetroot": -0.1667,
+      "corr_ndvi_precip": -0.1833,
+      "ndvi_min": 0.0777,
+      "ndvi_max": 0.9258,
+      "ndvi_mean": 0.6397
+    },
+    "EC_Coast_Guayas": {
+      "n_satellite_passes": 115,
+      "n_matched_months": 60,
+      "corr_ndvi_gwetroot": 0.0838,
+      "corr_ndvi_precip": -0.0626,
+      "ndvi_min": -0.0189,
+      "ndvi_max": 0.444,
+      "ndvi_mean": 0.1143
+    },
+    "EC_Andes_Quito": {
+      "n_satellite_passes": 115,
+      "n_matched_months": 60,
+      "corr_ndvi_gwetroot": 0.331,
+      "corr_ndvi_precip": -0.0025,
+      "ndvi_min": 0.1836,
+      "ndvi_max": 0.7969,
+      "ndvi_mean": 0.5892
+    },
+    "BR_Amazon_Manaus": {
+      "n_satellite_passes": 115,
+      "n_matched_months": 60,
+      "corr_ndvi_gwetroot": -0.0629,
+      "corr_ndvi_precip": -0.3196,
+      "ndvi_min": 0.0498,
+      "ndvi_max": 0.7157,
+      "ndvi_mean": 0.2494
+    },
+    "BR_Pantanal": {
+      "n_satellite_passes": 115,
+      "n_matched_months": 60,
+      "corr_ndvi_gwetroot": 0.715,
+      "corr_ndvi_precip": 0.5893,
+      "ndvi_min": 0.3441,
+      "ndvi_max": 0.845,
+      "ndvi_mean": 0.632
+    }
+  }
+}

@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TerraLens — NASA Space Apps 2026 Pitch Deck (7 Slides)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #070b12;
+      --surface: #0e1522;
+      --surface-2: #131c2e;
+      --border: rgba(148, 163, 184, 0.16);
+      --border-strong: rgba(56, 189, 248, 0.35);
+      --ink: #f1f5f9;
+      --ink-2: #cbd5e1;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --mono: 'JetBrains Mono', ui-monospace, monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      background: #030509;
+      color: var(--ink);
+      font-family: var(--sans);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Interactive Deck Controls (Hidden in PDF Print) */
+    .deck-toolbar {
+      position: fixed;
+      top: 14px;
+      right: 18px;
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(14, 21, 34, 0.92);
+      border: 1px solid var(--border);
+      padding: 6px 10px;
+      border-radius: 999px;
+      backdrop-filter: blur(8px);
+      font-size: 12px;
+    }
+    .deck-btn {
+      background: transparent;
+      color: var(--ink);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-family: var(--sans);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .deck-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .deck-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 28px;
+      padding: 28px 0 60px;
+    }
+
+    /* Exact 16:9 Widescreen Slide Frame (1280 x 720) */
+    .slide {
+      width: 1280px;
+      height: 720px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 44px 54px 38px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+      page-break-after: always;
+      break-after: page;
+    }
+
+    /* Subtle orbital coordinate grid lines on Slide 1 only */
+    .slide-cover {
+      background:
+        radial-gradient(ellipse 680px 420px at 84% 24%, rgba(56, 189, 248, 0.09), transparent 70%),
+        var(--bg);
+    }
+
+    .slide-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+    }
+
+    .brand-mark {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--ink);
+      letter-spacing: -0.01em;
+    }
+
+    .brand-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    .slide-tag {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .slide-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 22px;
+      padding: 18px 0;
+    }
+
+    .slide-h1 {
+      font-size: 48px;
+      font-weight: 800;
+      line-height: 1.07;
+      letter-spacing: -0.03em;
+      color: var(--ink);
+    }
+
+    .slide-h2 {
+      font-size: 31px;
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.025em;
+      color: var(--ink);
+    }
+
+    .slide-lead {
+      font-size: 17px;
+      line-height: 1.5;
+      color: var(--ink-2);
+      max-width: 78ch;
+    }
+
+    .split-2 {
+      display: grid;
+      grid-template-columns: 1fr 1.15fr;
+      gap: 28px;
+      align-items: center;
+    }
+
+    .split-even {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    .cols-3 {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .cols-4 {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card-accent { border-left: 3px solid var(--accent); }
+    .card-rose { border-left: 3px solid var(--rose); }
+    .card-amber { border-left: 3px solid var(--amber); }
+    .card-emerald { border-left: 3px solid var(--emerald); }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--ink);
+      letter-spacing: -0.01em;
+    }
+
+    .card-text {
+      font-size: 13.5px;
+      line-height: 1.5;
+      color: var(--ink-2);
+    }
+
+    .mono-stat {
+      font-family: var(--mono);
+      font-variant-numeric: tabular-nums;
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.02em;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .screen-frame {
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      border-radius: 10px;
+      padding: 8px;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+    }
+
+    .screen-frame img {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 6px;
+    }
+
+    .screen-caption {
+      margin-top: 8px;
+      font-size: 11.5px;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+
+    table.clean-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    table.clean-table th {
+      text-align: left;
+      padding: 9px 10px;
+      color: var(--muted);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border);
+    }
+    table.clean-table td {
+      padding: 10px 10px;
+      color: var(--ink-2);
+      border-bottom: 1px solid rgba(148, 163, 184, 0.08);
+    }
+    table.clean-table td.num, table.clean-table th.num {
+      text-align: right;
+      font-family: var(--mono);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .pill-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .pill {
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--ink-2);
+    }
+
+    .slide-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    @media print {
+      @page {
+        size: 13.333in 7.5in;
+        margin: 0;
+      }
+      html, body { background: var(--bg); }
+      .deck-toolbar { display: none !important; }
+      .deck-container { padding: 0; gap: 0; }
+      .slide {
+        width: 13.333in;
+        height: 7.5in;
+        border: none;
+        border-radius: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="deck-toolbar">
+    <span style="color:var(--muted);">TerraLens · 7-Slide Pitch</span>
+    <button class="deck-btn" id="btnDeckLang" onclick="toggleDeckLang()">🌐 ES</button>
+    <button class="deck-btn" onclick="window.print()">⬇ PDF</button>
+  </div>
+
+  <main class="deck-container">
+    <!-- SLIDE 1: COVER / HOOK -->
+    <section class="slide slide-cover">
+      <div class="slide-top">
+        <div class="brand-mark">
+          <span class="brand-dot"></span>
+          <span>TerraLens v2.1</span>
+        </div>
+        <div class="slide-tag" data-en="NASA Space Apps 2026 · Team Proyecto Hail Mary" data-es="NASA Space Apps 2026 · Equipo Proyecto Hail Mary">NASA Space Apps 2026 · Team Proyecto Hail Mary</div>
+      </div>
+
+      <div class="slide-body split-2">
+        <div style="display:flex;flex-direction:column;gap:20px;">
+          <h1 class="slide-h1" data-en="Are 45-year climate trends real—or statistical illusions?" data-es="¿Son reales las tendencias climáticas de 45 años o ilusiones estadísticas?">Are 45-year climate trends real—or statistical illusions?</h1>
+          <p class="slide-lead" data-en="TerraLens is an Earth System Trend Detective combining 45 years of NASA satellite records, persistence-corrected statistics, and zero-leakage Machine Learning to separate true structural warming from sensor jumps and isolated El Niño spikes." data-es="TerraLens es un detective científico de tendencias terrestres que combina 45 años de datos satelitales NASA, estadística corregida por persistencia y Machine Learning sin fugas para separar el calentamiento estructural real de quiebres de sensor y picos aislados de El Niño.">TerraLens is an Earth System Trend Detective combining 45 years of NASA satellite records, persistence-corrected statistics, and zero-leakage Machine Learning to separate true structural warming from sensor jumps and isolated El Niño spikes.</p>
+          <div class="pill-row">
+            <span class="pill">NASA POWER 1981–2025</span>
+            <span class="pill">Terra MODIS 250m</span>
+            <span class="pill">NOAA ONI</span>
+            <span class="pill">Meteomatics 1km</span>
+          </div>
+        </div>
+        <div class="screen-frame">
+          <img src="assets/app_trends.png" alt="TerraLens Historical Trends Workspace" />
+          <div class="screen-caption" data-en="Live Observatory · Paute Basin (+0.197 °C/decade, Hamed-Rao p < 0.0001)" data-es="Observatorio en Vivo · Cuenca Paute (+0.197 °C/década, Hamed-Rao p < 0.0001)">Live Observatory · Paute Basin (+0.197 °C/decade, Hamed-Rao p < 0.0001)</div>
+        </div>
+      </div>
+
+      <div class="slide-foot">
+        <span data-en="Challenge: Be An Earth System Trend Detective!" data-es="Reto: ¡Sé un Detective de Tendencias del Sistema Terrestre!">Challenge: Be An Earth System Trend Detective!</span>
+        <span class="slide-tag">01 / 07</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 2: THE PROBLEM (3 HIDDEN STATISTICAL TRAPS) -->
+    <section class="slide">
+      <div class="slide-top">
+        <div class="brand-mark"><span class="brand-dot"></span><span data-en="02 · The Problem" data-es="02 · El Problema">02 · The Problem</span></div>
+        <div class="slide-tag" data-en="Why naive regressions on satellite grids fail" data-es="Por qué fallan las regresiones simples en mallas satelitales">Why naive regressions on satellite grids fail</div>
+      </div>
+
+      <div class="slide-body">
+        <div>
+          <h2 class="slide-h2" data-en="Three traps create fake long-term trends in satellite records" data-es="Tres trampas estadísticas fabrican tendencias climáticas falsas">Three traps create fake long-term trends in satellite records</h2>
+          <p class="slide-lead" style="margin-top:8px;" data-en="Standard linear regression assumes independent samples, stationary sensors, and homogeneous pixels. Climate data violates all three." data-es="La regresión lineal clásica asume observaciones independientes, sensores constantes y píxeles homogéneos. Las series climáticas violan los tres supuestos.">Standard linear regression assumes independent samples, stationary sensors, and homogeneous pixels. Climate data violates all three.</p>
+        </div>
+
+        <div class="cols-3">
+          <div class="card card-rose">
+            <div class="mono-stat" style="color:var(--rose);">r₁ &gt; 0.6</div>
+            <div class="card-title" data-en="Trap 1 · Autocorrelation Memory" data-es="Trampa 1 · Memoria Temporal (r₁)">Trap 1 · Autocorrelation Memory</div>
+            <p class="card-text" data-en="Monthly soil wetness persists across seasons. Treating 540 correlated months as independent inflates significance—turning random drought memory into false p < 0.05 alerts." data-es="La humedad del suelo persiste varios meses. Tratar 540 meses correlacionados como independientes infla la significancia y convierte ruido climático en falsos p < 0.05."></p>
+          </div>
+
+          <div class="card card-amber">
+            <div class="mono-stat" style="color:var(--amber);">Jan 2001</div>
+            <div class="card-title" data-en="Trap 2 · Satellite Sensor Splices" data-es="Trampa 2 · Empalmes de Satélite">Trap 2 · Satellite Sensor Splices</div>
+            <p class="card-text" data-en="NASA POWER solar radiation transitions from ERBE/SRB (1984–2000) to CERES radiometers in 2001. Unfiltered series mistake instrument calibration steps for solar trends." data-es="La radiación solar de NASA POWER cambia de radiómetros ERBE/SRB (1984–2000) a CERES en 2001. Sin filtro, ese salto instrumental parece cambio climático."></p>
+          </div>
+
+          <div class="card card-accent">
+            <div class="mono-stat">~55 km</div>
+            <div class="card-title" data-en="Trap 3 · Extremes & Coarse Scale" data-es="Trampa 3 · Extremos y Escala Gruesa">Trap 3 · Extremes & Coarse Scale</div>
+            <p class="card-text" data-en="A single 1997–98 El Niño flood skews OLS slopes, while 55 km pixels average dry Andean basins with wet eastern foothills—masking local agricultural drought." data-es="Un pico extremo de El Niño 1997–98 desvía pendientes OLS, y píxeles de 55 km promedian valles secos con selva húmeda, ocultando sequías andinas locales."></p>
+          </div>
+        </div>
+      </div>
+
+      <div class="slide-foot">
+        <span data-en="Verified against real 1981–2025 NASA POWER observations" data-es="Verificado con observaciones reales NASA POWER 1981–2025">Verified against real 1981–2025 NASA POWER observations</span>
+        <span class="slide-tag">02 / 07</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 3: OUR SOLUTION & PIPELINE -->
+    <section class="slide">
+      <div class="slide-top">
+        <div class="brand-mark"><span class="brand-dot"></span><span data-en="03 · Architecture" data-es="03 · Arquitectura">03 · Architecture</span></div>
+        <div class="slide-tag" data-en="End-to-end NASA data to anti-bias verification" data-es="Flujo completo de datos NASA a verificación anti-sesgo">End-to-end NASA data to anti-bias verification</div>
+      </div>
+
+      <div class="slide-body">
+        <h2 class="slide-h2" data-en="Four-stage scientific pipeline inside an open bilingual observatory" data-es="Pipeline científico de cuatro etapas en un observatorio abierto bilingüe">Four-stage scientific pipeline inside an open bilingual observatory</h2>
+
+        <div class="cols-4">
+          <div class="card card-accent">
+            <div class="stat-label" data-en="Stage 1 · Ingestion" data-es="Etapa 1 · Ingesta">Stage 1 · Ingestion</div>
+            <div class="card-title" data-en="Multi-Sensor Cubes" data-es="Cubos Multi-Sensor">Multi-Sensor Cubes</div>
+            <p class="card-text" data-en="55,697 monthly observations across 11 global benchmark regions + 96-cell Ecuador grid, fused with NOAA ONI, MODIS 250 m NDVI, and 1 km topography." data-es="55,697 observaciones en 11 nodos globales + malla Ecuador de 96 celdas, fusionadas con NOAA ONI, MODIS 250 m y 1 km topográfico."></p>
+          </div>
+
+          <div class="card card-amber">
+            <div class="stat-label" data-en="Stage 2 · Statistics" data-es="Etapa 2 · Estadística">Stage 2 · Statistics</div>
+            <div class="card-title" data-en="Persistence & FDR Guards" data-es="Filtros de Persistencia">Persistence & FDR Guards</div>
+            <p class="card-text" data-en="Monthly Z-scores, non-parametric Theil-Sen slopes, Hamed-Rao variance inflation, Santer n_eff degrees of freedom, Pettitt breakpoints, and BH-FDR q-values." data-es="Z-scores mensuales, pendientes Theil-Sen, ajuste Hamed-Rao y Santer (n_eff), quiebres Pettitt y control múltiple BH-FDR."></p>
+          </div>
+
+          <div class="card card-emerald">
+            <div class="stat-label" data-en="Stage 3 · ML Audit" data-es="Etapa 3 · Auditoría ML">Stage 3 · ML Audit</div>
+            <div class="card-title" data-en="Consensus + Acker Test" data-es="Consenso + Test Acker">Consensus + Acker Test</div>
+            <p class="card-text" data-en="Isolation Forest, LOF, and Elliptic Envelope flag the top 5% compound anomalies—then remove them to test if slopes survive without spikes." data-es="Isolation Forest, LOF y Elliptic Envelope detectan el 5% de anomalías compuestas y recalculan tendencias sin esos picos."></p>
+          </div>
+
+          <div class="card card-accent">
+            <div class="stat-label" data-en="Stage 4 · Discovery" data-es="Etapa 4 · Exploración">Stage 4 · Discovery</div>
+            <div class="card-title" data-en="Live Probe & Bilingual UI" data-es="Sonda Global y UI EN/ES">Live Probe & Bilingual UI</div>
+            <p class="card-text" data-en="FastAPI + interactive dashboard with 5 guided case studies, dark/light themes, CSV export, and real-time NASA POWER querying at any global lat/lon." data-es="FastAPI + observatorio con 5 casos guiados, modo claro/oscuro, exportación CSV y consulta NASA POWER en vivo global."></p>
+          </div>
+        </div>
+
+        <div class="card" style="padding:14px 20px;flex-direction:row;align-items:center;justify-content:space-between;">
+          <span class="card-text" style="color:var(--ink);" data-en="Includes an interactive 'Project & Build' documentation tab explaining problem, pipeline, and live proof directly inside the app." data-es="Incluye la pestaña interactiva 'Qué se Hizo' que documenta problema, código, metodología y pruebas directamente dentro de la app.">Includes an interactive 'Project & Build' documentation tab explaining problem, pipeline, and live proof directly inside the app.</span>
+          <span class="pill">FastAPI · Scikit-Learn · SciPy · Leaflet</span>
+        </div>
+      </div>
+
+      <div class="slide-foot">
+        <span data-en="Zero synthetic substitutes in trend validation" data-es="Cero datos sintéticos en validación de tendencias">Zero synthetic substitutes in trend validation</span>
+        <span class="slide-tag">03 / 07</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 4: DETECTIVE PROOF (TRAPS & ACKER TEST) -->
+    <section class="slide">
+      <div class="slide-top">
+        <div class="brand-mark"><span class="brand-dot"></span><span data-en="04 · Detective Evidence" data-es="04 · Evidencia Detective">04 · Detective Evidence</span></div>
+        <div class="slide-tag" data-en="Real traps caught & ENSO dipole proof" data-es="Trampas detectadas y prueba del dipolo ENSO">Real traps caught & ENSO dipole proof</div>
+      </div>
+
+      <div class="slide-body split-2">
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <h2 class="slide-h2" data-en="Proven empirical catches across South America" data-es="Hallazgos empíricos comprobados en Sudamérica">Proven empirical catches across South America</h2>
+          <table class="clean-table">
+            <thead>
+              <tr>
+                <th data-en="Diagnostic Case" data-es="Caso Diagnóstico">Diagnostic Case</th>
+                <th class="num" data-en="Verified Result" data-es="Resultado Verificado">Verified Result</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td data-en="Trap #1 · Paute Soil Moisture" data-es="Trampa #1 · Humedad Paute">Trap #1 · Paute Soil Moisture</td>
+                <td class="num" style="color:var(--amber);">p: 0.030 → 0.728</td>
+              </tr>
+              <tr>
+                <td data-en="Trap #2 · Guayas Solar Break" data-es="Trampa #2 · Quiebre Solar">Trap #2 · Guayas Solar Break</td>
+                <td class="num" style="color:var(--rose);">1999-05 (p=1.1e-16)</td>
+              </tr>
+              <tr>
+                <td data-en="Paute Structural Warming" data-es="Calentamiento Paute">Paute Structural Warming</td>
+                <td class="num" style="color:var(--emerald);">+0.197 °C / dec</td>
+              </tr>
+              <tr>
+                <td data-en="ENSO Dipole (Guayas vs Manaus)" data-es="Dipolo ENSO (Guayas vs Manaos)">ENSO Dipole (Guayas vs Manaus)</td>
+                <td class="num" style="color:var(--accent);">+0.209 vs -0.329</td>
+              </tr>
+              <tr>
+                <td data-en="Top Outlier (1997-98 El Niño)" data-es="Extremo Pico (El Niño 1997-98)">Top Outlier (1997-98 El Niño)</td>
+                <td class="num">1997-11 (98.3%)</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="screen-frame">
+          <img src="assets/app_acker.png" alt="TerraLens Acker Outlier Sensitivity View" />
+          <div class="screen-caption" data-en="Acker Outlier Test · Baseline 45y slopes vs. ML-filtered slopes across 6 variables" data-es="Test de Acker · Pendientes de 45 años vs. pendientes filtradas sin extremos ML">Acker Outlier Test · Baseline 45y slopes vs. ML-filtered slopes across 6 variables</div>
+        </div>
+      </div>
+
+      <div class="slide-foot">
+        <span data-en="Continuously verified against empirical NASA & NOAA benchmarks" data-es="Verificado continuamente frente a referencias empíricas NASA y NOAA">Continuously verified against empirical NASA & NOAA benchmarks</span>
+        <span class="slide-tag">04 / 07</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 5: ZERO-LEAKAGE 3-WAY ML VALIDATION -->
+    <section class="slide">
+      <div class="slide-top">
+        <div class="brand-mark"><span class="brand-dot"></span><span data-en="05 · Machine Learning Rigor" data-es="05 · Rigor en Machine Learning">05 · Machine Learning Rigor</span></div>
+        <div class="slide-tag" data-en="Chronological 3-way split: 1981–2018 Train/Val vs. 2019–2025 Locked Test" data-es="Partición cronológica 3 vías: 1981–2018 Train/Val vs. 2019–2025 Test Futuro">Chronological 3-way split: 1981–2018 Train/Val vs. 2019–2025 Locked Test</div>
+      </div>
+
+      <div class="slide-body split-2">
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <h2 class="slide-h2" data-en="Strict zero-leakage validation across 55,697 observations" data-es="Validación estricta sin fugas sobre 55,697 observaciones">Strict zero-leakage validation across 55,697 observations</h2>
+          <p class="card-text" data-en="We fit strictly on 1981–2018 with 5-fold TimeSeriesSplit CV and evaluate on 6,912 unseen future test months (2019–2024)—exposing real physical regime shifts like Arctic Polar Amplification." data-es="Entrenamos estrictamente en 1981–2018 con TimeSeriesSplit de 5 pliegues y evaluamos en 6,912 meses futuros ocultos (2019–2024), revelando quiebres reales como el Ártico."></p>
+          <table class="clean-table">
+            <thead>
+              <tr>
+                <th>Model Architecture</th>
+                <th class="num">Val CV R²</th>
+                <th class="num">Test R²</th>
+                <th class="num">Test RMSE</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td style="color:var(--ink);font-weight:600;">HistGradientBoosting</td>
+                <td class="num">0.9214</td>
+                <td class="num" style="color:var(--emerald);font-weight:700;">0.9191</td>
+                <td class="num">0.2308</td>
+              </tr>
+              <tr>
+                <td>RandomForestRegressor</td>
+                <td class="num">0.9073</td>
+                <td class="num">0.9019</td>
+                <td class="num">0.2542</td>
+              </tr>
+              <tr>
+                <td>GradientBoostingRegressor</td>
+                <td class="num">0.9151</td>
+                <td class="num">0.8989</td>
+                <td class="num">0.2579</td>
+              </tr>
+              <tr>
+                <td>RidgeBaseline</td>
+                <td class="num">0.9147</td>
+                <td class="num">0.8907</td>
+                <td class="num">0.2682</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="screen-frame">
+          <img src="assets/app_telemetry.png" alt="TerraLens ML 3-Way Split Leaderboard" />
+          <div class="screen-caption" data-en="Utqiaġvik (Alaska) reveals non-stationary cryospheric departure (+0.579 °C/decade)" data-es="Utqiaġvik (Alaska) revela quiebre no estacionario criosférico (+0.579 °C/década)">Utqiaġvik (Alaska) reveals non-stationary cryospheric departure (+0.579 °C/decade)</div>
+        </div>
+      </div>
+
+      <div class="slide-foot">
+        <span data-en="Reproducible gradient-boosted & random forest ensemble across 55,697 rows" data-es="Ensamble reproducible Gradient Boosting y Random Forest en 55,697 registros">Reproducible gradient-boosted & random forest ensemble across 55,697 rows</span>
+        <span class="slide-tag">05 / 07</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 6: MULTI-SCALE FUSION & GLOBAL REACH -->
+    <section class="slide">
+      <div class="slide-top">
+        <div class="brand-mark"><span class="brand-dot"></span><span data-en="06 · Global & Multi-Scale Fusion" data-es="06 · Alcance Global y Multi-Escala">06 · Global & Multi-Scale Fusion</span></div>
+        <div class="slide-tag">55 km POWER → 1 km Meteomatics → 250 m Terra MODIS NDVI</div>
+      </div>
+
+      <div class="slide-body split-2">
+        <div style="display:flex;flex-direction:column;gap:16px;">
+          <h2 class="slide-h2" data-en="From local Andean droughts to 11 global benchmark climates" data-es="De sequías andinas a 11 biomas globales de referencia">From local Andean droughts to 11 global benchmark climates</h2>
+          <div class="card card-accent">
+            <div class="card-title" data-en="Ecuador 96-Cell Grid + 11 Global Nodes" data-es="Malla Ecuador 96 Celdas + 11 Nodos Globales">Ecuador 96-Cell Grid + 11 Global Nodes</div>
+            <p class="card-text" data-en="Combines coastal, Andean, and Amazon gradients alongside Alaska Arctic, Mississippi Delta, Sahel, Mediterranean Spain, Cerrado, and Patagonian stations." data-es="Integra gradientes de Costa, Andes y Amazonía junto con el Ártico de Alaska, Delta del Misisipi, Sahel, Mediterráneo, Cerrado y Patagonia."></p>
+          </div>
+          <div class="card card-emerald">
+            <div class="card-title" data-en="Canopy Verification & Live Probe" data-es="Verificación NDVI 250m y Sonda en Vivo">Canopy Verification & Live Probe</div>
+            <p class="card-text" data-en="115 Terra MODIS 250 m satellite passes verify vegetative stress while a live NASA POWER coordinate probe audits any point on Earth in seconds." data-es="115 pasadas Terra MODIS a 250 m confirman estrés vegetal y una sonda en vivo analiza cualquier coordenada de la Tierra al instante."></p>
+          </div>
+        </div>
+        <div class="screen-frame">
+          <img src="assets/app_map_global.png" alt="TerraLens Global 11 Benchmark Nodes & 96 Ecuador Grid Cells" />
+          <div class="screen-caption" data-en="Live Interactive Map · Click any global benchmark node, 55 km cell, or coordinate" data-es="Mapa Interactivo · Clic en cualquier nodo global, celda de 55 km o coordenada">Live Interactive Map · Click any global benchmark node, 55 km cell, or coordinate</div>
+        </div>
+      </div>
+
+      <div class="slide-foot">
+        <span data-en="On-demand retrieval via /api/live-probe?lat=...&lon=..." data-es="Consulta bajo demanda vía /api/live-probe?lat=...&lon=...">On-demand retrieval via /api/live-probe?lat=...&lon=...</span>
+        <span class="slide-tag">06 / 07</span>
+      </div>
+    </section>
+
+    <!-- SLIDE 7: IMPACT, VALIDATION & DEPLOYMENT -->
+    <section class="slide">
+      <div class="slide-top">
+        <div class="brand-mark"><span class="brand-dot"></span><span data-en="07 · Impact & Verification" data-es="07 · Impacto y Verificación">07 · Impact & Verification</span></div>
+        <div class="slide-tag" data-en="Open-source, Dockerized & 6/6 scientifically verified" data-es="Código abierto, Docker y 6/6 pruebas científicas">Open-source, Dockerized & 6/6 scientifically verified</div>
+      </div>
+
+      <div class="slide-body">
+        <h2 class="slide-h2" data-en="Ready for climate researchers, hydropower planners & educators" data-es="Listo para investigadores climáticos, planificación hídrica y docencia">Ready for climate researchers, hydropower planners & educators</h2>
+
+        <div class="cols-3">
+          <div class="card card-emerald">
+            <div class="mono-stat" style="color:var(--emerald);">6 / 6</div>
+            <div class="card-title" data-en="Automated Scientific Suite" data-es="Suite Científica Verificada">Automated Scientific Suite</div>
+            <p class="card-text" data-en="Every statistical guardrail, ENSO polarity test, ML outlier consensus, and multi-scale layer passes continuous automated verification." data-es="Cada filtro estadístico, polaridad ENSO, consenso ML y capa multi-escala supera validación automática continua."></p>
+          </div>
+
+          <div class="card card-accent">
+            <div class="mono-stat">EN / ES</div>
+            <div class="card-title" data-en="Bilingual + Light & Dark UI" data-es="Observatorio Bilingüe + Temas">Bilingual + Light & Dark UI</div>
+            <p class="card-text" data-en="Built for international judges and Latin American watershed operators alike, with full inline methodology and one-click CSV data export." data-es="Diseñado para el jurado internacional y gestores hídricos regionales, con guía metodológica integrada y descarga CSV."></p>
+          </div>
+
+          <div class="card card-amber">
+            <div class="mono-stat" style="color:var(--amber);">55,697</div>
+            <div class="card-title" data-en="Open NASA + NOAA Stack" data-es="Stack Abierto NASA + NOAA">Open NASA + NOAA Stack</div>
+            <p class="card-text" data-en="Docker-ready FastAPI server using open NASA POWER, MODIS NDVI, and NOAA records—zero proprietary vendor lock-in." data-es="Servidor FastAPI listo para Docker sobre registros abiertos de NASA POWER, MODIS NDVI y NOAA sin dependencias cerradas."></p>
+          </div>
+        </div>
+
+        <div class="card" style="flex-direction:row;align-items:center;justify-content:space-between;background:var(--surface-2);">
+          <div>
+            <div style="font-size:15px;font-weight:700;color:var(--ink);" data-en="Team Proyecto Hail Mary — Xavier Peña, Bryam Astudillo, Juan Coronel & David Célleri (Ecuador)" data-es="Equipo Proyecto Hail Mary — Xavier Peña, Bryam Astudillo, Juan Coronel y David Célleri (Ecuador)">Team Proyecto Hail Mary — Xavier Peña, Bryam Astudillo, Juan Coronel & David Célleri (Ecuador)</div>
+            <div style="font-size:12.5px;color:var(--muted);margin-top:3px;" data-en="Apache 2.0 Open Source · Citations: NASA POWER, MODIS, NOAA CPC, Meteomatics, SciPy/Sklearn, Leaflet, Chart.js" data-es="Código Abierto Apache 2.0 · Fuentes: NASA POWER, MODIS, NOAA CPC, Meteomatics, SciPy/Sklearn, Leaflet, Chart.js">Apache 2.0 Open Source · Citations: NASA POWER, MODIS, NOAA CPC, Meteomatics, SciPy/Sklearn, Leaflet, Chart.js</div>
+          </div>
+          <span class="pill" style="border-color:var(--accent);color:var(--accent);">TerraLens v2.1</span>
+        </div>
+      </div>
+
+      <div class="slide-foot">
+        <span data-en="NASA Earth Science · POWER · MODIS · NOAA CPC" data-es="Ciencia Terrestre NASA · POWER · MODIS · NOAA CPC">NASA Earth Science · POWER · MODIS · NOAA CPC</span>
+        <span class="slide-tag">07 / 07</span>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    let DECK_LANG = 'en';
+    function toggleDeckLang(force = null) {
+      DECK_LANG = force ? force : (DECK_LANG === 'en' ? 'es' : 'en');
+      const btn = document.getElementById('btnDeckLang');
+      if (btn) btn.textContent = DECK_LANG === 'en' ? '🌐 ES' : '🌐 EN';
+      document.querySelectorAll('[data-en]').forEach(el => {
+        el.textContent = (DECK_LANG === 'es' && el.dataset.es) ? el.dataset.es : el.dataset.en;
+      });
+    }
+    (function initLangFromUrl() {
+      const p = new URLSearchParams(window.location.search);
+      toggleDeckLang(p.get('lang') === 'es' ? 'es' : 'en');
+    })();
+  </script>
+</body>
+</html>

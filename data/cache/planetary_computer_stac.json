@@ -1,0 +1,1410 @@
+{
+  "EC_Coast_Guayas": [
+    {
+      "stac_id": "MOD13Q1.A2025353.h10v09.061.2026005201229",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-19",
+      "platform": "terra",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MYD13Q1.A2025345.h10v09.061.2026001024812",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-11",
+      "platform": "aqua",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025337.h10v09.061.2025353221906",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-03",
+      "platform": "terra",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MYD13Q1.A2025329.h10v09.061.2025356140432",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-11-25",
+      "platform": "aqua",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025321.h10v09.061.2025339122929",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-11-17",
+      "platform": "terra",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025177.h10v09.061.2025195134857",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-06-26",
+      "platform": "terra",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    }
+  ],
+  "EC_Andes_Paute": [
+    {
+      "stac_id": "MOD13Q1.A2025353.h10v09.061.2026005201229",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-19",
+      "platform": "terra",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MYD13Q1.A2025345.h10v09.061.2026001024812",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-11",
+      "platform": "aqua",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025337.h10v09.061.2025353221906",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-03",
+      "platform": "terra",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MYD13Q1.A2025329.h10v09.061.2025356140432",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-11-25",
+      "platform": "aqua",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025321.h10v09.061.2025339122929",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-11-17",
+      "platform": "terra",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025177.h10v09.061.2025195134857",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-06-26",
+      "platform": "terra",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    }
+  ],
+  "EC_Andes_Quito": [
+    {
+      "stac_id": "MOD13Q1.A2025353.h10v09.061.2026005201229",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-19",
+      "platform": "terra",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MYD13Q1.A2025345.h10v09.061.2026001024812",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-11",
+      "platform": "aqua",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025337.h10v09.061.2025353221906",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-03",
+      "platform": "terra",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MYD13Q1.A2025329.h10v09.061.2025356140432",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-11-25",
+      "platform": "aqua",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025321.h10v09.061.2025339122929",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-11-17",
+      "platform": "terra",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025177.h10v09.061.2025195134857",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-06-26",
+      "platform": "terra",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    }
+  ],
+  "EC_Amazon_Napo": [
+    {
+      "stac_id": "MOD13Q1.A2025353.h10v09.061.2026005201229",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-19",
+      "platform": "terra",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MYD13Q1.A2025345.h10v09.061.2026001024812",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-11",
+      "platform": "aqua",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025337.h10v09.061.2025353221906",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-03",
+      "platform": "terra",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MYD13Q1.A2025329.h10v09.061.2025356140432",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-11-25",
+      "platform": "aqua",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025321.h10v09.061.2025339122929",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-11-17",
+      "platform": "terra",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025177.h10v09.061.2025195134857",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-06-26",
+      "platform": "terra",
+      "tile_grid": "h10v09",
+      "bbox": [
+        -81.23,
+        -10.0,
+        -70.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    }
+  ],
+  "EC_Galapagos": [
+    {
+      "stac_id": "MOD13Q1.A2025353.h08v09.061.2026005202315",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-19",
+      "platform": "terra",
+      "tile_grid": "h08v09",
+      "bbox": [
+        -101.54,
+        -10.0,
+        -90.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MYD13Q1.A2025345.h08v09.061.2026001024704",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-11",
+      "platform": "aqua",
+      "tile_grid": "h08v09",
+      "bbox": [
+        -101.54,
+        -10.0,
+        -90.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "250m_16_days_EVI",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality",
+        "250m_16_days_MIR_reflectance",
+        "250m_16_days_NIR_reflectance"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025337.h08v09.061.2025353222150",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-03",
+      "platform": "terra",
+      "tile_grid": "h08v09",
+      "bbox": [
+        -101.54,
+        -10.0,
+        -90.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MYD13Q1.A2025329.h08v09.061.2025356142306",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-11-25",
+      "platform": "aqua",
+      "tile_grid": "h08v09",
+      "bbox": [
+        -101.54,
+        -10.0,
+        -90.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "250m_16_days_EVI",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality",
+        "250m_16_days_MIR_reflectance",
+        "250m_16_days_NIR_reflectance"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025321.h08v09.061.2025339124716",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-11-17",
+      "platform": "terra",
+      "tile_grid": "h08v09",
+      "bbox": [
+        -101.54,
+        -10.0,
+        -90.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025177.h08v09.061.2025195132029",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-06-26",
+      "platform": "terra",
+      "tile_grid": "h08v09",
+      "bbox": [
+        -101.54,
+        -10.0,
+        -90.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    }
+  ],
+  "BR_Amazon_Manaus": [
+    {
+      "stac_id": "MYD13Q1.A2025361.h12v09.061.2026009223705",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-27",
+      "platform": "aqua",
+      "tile_grid": "h12v09",
+      "bbox": [
+        -60.93,
+        -10.0,
+        -50.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "250m_16_days_EVI",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality",
+        "250m_16_days_MIR_reflectance",
+        "250m_16_days_NIR_reflectance"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025353.h12v09.061.2026005202551",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-19",
+      "platform": "terra",
+      "tile_grid": "h12v09",
+      "bbox": [
+        -60.93,
+        -10.0,
+        -50.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MYD13Q1.A2025345.h12v09.061.2026001025838",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-11",
+      "platform": "aqua",
+      "tile_grid": "h12v09",
+      "bbox": [
+        -60.93,
+        -10.0,
+        -50.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "250m_16_days_EVI",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality",
+        "250m_16_days_MIR_reflectance",
+        "250m_16_days_NIR_reflectance"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025337.h12v09.061.2025353222248",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-03",
+      "platform": "terra",
+      "tile_grid": "h12v09",
+      "bbox": [
+        -60.93,
+        -10.0,
+        -50.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MYD13Q1.A2025329.h12v09.061.2025356142532",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-11-25",
+      "platform": "aqua",
+      "tile_grid": "h12v09",
+      "bbox": [
+        -60.93,
+        -10.0,
+        -50.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "250m_16_days_EVI",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality",
+        "250m_16_days_MIR_reflectance",
+        "250m_16_days_NIR_reflectance"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025321.h12v09.061.2025339122027",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-11-17",
+      "platform": "terra",
+      "tile_grid": "h12v09",
+      "bbox": [
+        -60.93,
+        -10.0,
+        -50.0,
+        0.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    }
+  ],
+  "BR_Pantanal": [
+    {
+      "stac_id": "MOD13Q1.A2025353.h12v10.061.2026005201711",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-19",
+      "platform": "terra",
+      "tile_grid": "h12v10",
+      "bbox": [
+        -63.85,
+        -20.0,
+        -50.77,
+        -10.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MYD13Q1.A2025345.h12v10.061.2026001024110",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-11",
+      "platform": "aqua",
+      "tile_grid": "h12v10",
+      "bbox": [
+        -63.85,
+        -20.0,
+        -50.77,
+        -10.0
+      ],
+      "assets": [
+        "hdf",
+        "250m_16_days_EVI",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality",
+        "250m_16_days_MIR_reflectance",
+        "250m_16_days_NIR_reflectance"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025337.h12v10.061.2025353224201",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-03",
+      "platform": "terra",
+      "tile_grid": "h12v10",
+      "bbox": [
+        -63.85,
+        -20.0,
+        -50.77,
+        -10.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MYD13Q1.A2025329.h12v10.061.2025356142349",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-11-25",
+      "platform": "aqua",
+      "tile_grid": "h12v10",
+      "bbox": [
+        -63.85,
+        -20.0,
+        -50.77,
+        -10.0
+      ],
+      "assets": [
+        "hdf",
+        "250m_16_days_EVI",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality",
+        "250m_16_days_MIR_reflectance",
+        "250m_16_days_NIR_reflectance"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025321.h12v10.061.2025339124630",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-11-17",
+      "platform": "terra",
+      "tile_grid": "h12v10",
+      "bbox": [
+        -63.85,
+        -20.0,
+        -50.77,
+        -10.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025177.h12v10.061.2025195141946",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-06-26",
+      "platform": "terra",
+      "tile_grid": "h12v10",
+      "bbox": [
+        -63.85,
+        -20.0,
+        -50.77,
+        -10.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    }
+  ],
+  "PE_Altiplano": [
+    {
+      "stac_id": "MOD13Q1.A2025353.h11v10.061.2026005201803",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-19",
+      "platform": "terra",
+      "tile_grid": "h11v10",
+      "bbox": [
+        -74.49,
+        -20.0,
+        -60.93,
+        -10.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MYD13Q1.A2025345.h11v10.061.2026001023834",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-11",
+      "platform": "aqua",
+      "tile_grid": "h11v10",
+      "bbox": [
+        -74.49,
+        -20.0,
+        -60.93,
+        -10.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025337.h11v10.061.2025353223150",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-03",
+      "platform": "terra",
+      "tile_grid": "h11v10",
+      "bbox": [
+        -74.49,
+        -20.0,
+        -60.93,
+        -10.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MYD13Q1.A2025329.h11v10.061.2025356142531",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-11-25",
+      "platform": "aqua",
+      "tile_grid": "h11v10",
+      "bbox": [
+        -74.49,
+        -20.0,
+        -60.93,
+        -10.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025321.h11v10.061.2025339122911",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-11-17",
+      "platform": "terra",
+      "tile_grid": "h11v10",
+      "bbox": [
+        -74.49,
+        -20.0,
+        -60.93,
+        -10.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025177.h11v10.061.2025195141811",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-06-26",
+      "platform": "terra",
+      "tile_grid": "h11v10",
+      "bbox": [
+        -74.49,
+        -20.0,
+        -60.93,
+        -10.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    }
+  ],
+  "US_Mississippi_Delta": [
+    {
+      "stac_id": "MOD13Q1.A2025353.h10v06.061.2026005201209",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-19",
+      "platform": "terra",
+      "tile_grid": "h10v06",
+      "bbox": [
+        -92.38,
+        20.0,
+        -74.49,
+        30.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MYD13Q1.A2025345.h10v06.061.2026001023800",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-11",
+      "platform": "aqua",
+      "tile_grid": "h10v06",
+      "bbox": [
+        -92.38,
+        20.0,
+        -74.49,
+        30.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025337.h10v06.061.2025353221826",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-03",
+      "platform": "terra",
+      "tile_grid": "h10v06",
+      "bbox": [
+        -92.38,
+        20.0,
+        -74.49,
+        30.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MYD13Q1.A2025329.h10v06.061.2025356143728",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-11-25",
+      "platform": "aqua",
+      "tile_grid": "h10v06",
+      "bbox": [
+        -92.38,
+        20.0,
+        -74.49,
+        30.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025321.h10v06.061.2025339122912",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-11-17",
+      "platform": "terra",
+      "tile_grid": "h10v06",
+      "bbox": [
+        -92.38,
+        20.0,
+        -74.49,
+        30.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025177.h10v06.061.2025195141129",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-06-26",
+      "platform": "terra",
+      "tile_grid": "h10v06",
+      "bbox": [
+        -92.38,
+        20.0,
+        -74.49,
+        30.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    }
+  ],
+  "US_Arctic_Barrow": [
+    {
+      "stac_id": "MOD13Q1.A2025321.h12v01.061.2025339120357",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-11-17",
+      "platform": "terra",
+      "tile_grid": "h12v01",
+      "bbox": [
+        -180.0,
+        70.0,
+        -146.19,
+        73.87
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025177.h12v01.061.2025195140833",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-06-26",
+      "platform": "terra",
+      "tile_grid": "h12v01",
+      "bbox": [
+        -180.0,
+        70.0,
+        -146.19,
+        73.87
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MYD13Q1.A2025169.h12v01.061.2025189102611",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-06-18",
+      "platform": "aqua",
+      "tile_grid": "h12v01",
+      "bbox": [
+        -180.0,
+        70.0,
+        -146.19,
+        73.87
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025161.h12v01.061.2025178122939",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-06-10",
+      "platform": "terra",
+      "tile_grid": "h12v01",
+      "bbox": [
+        -180.0,
+        70.0,
+        -146.19,
+        73.87
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MYD13Q1.A2025153.h14v01.061.2025171183915",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-06-02",
+      "platform": "terra,aqua",
+      "tile_grid": "h14v01",
+      "bbox": [
+        -182.93,
+        66.34,
+        -38.46,
+        84.57
+      ],
+      "assets": [
+        "hdf",
+        "metadata",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI"
+      ]
+    },
+    {
+      "stac_id": "MYD13Q1.A2025153.h12v01.061.2025171180943",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-06-02",
+      "platform": "terra,aqua",
+      "tile_grid": "h12v01",
+      "bbox": [
+        -183.48,
+        69.07,
+        -142.65,
+        73.95
+      ],
+      "assets": [
+        "hdf",
+        "metadata",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI"
+      ]
+    }
+  ],
+  "ES_Med_Almeria": [
+    {
+      "stac_id": "MYD13Q1.A2025361.h17v05.061.2026009223424",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-27",
+      "platform": "aqua",
+      "tile_grid": "h17v05",
+      "bbox": [
+        -13.05,
+        30.0,
+        0.0,
+        40.0
+      ],
+      "assets": [
+        "hdf",
+        "250m_16_days_EVI",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality",
+        "250m_16_days_MIR_reflectance",
+        "250m_16_days_NIR_reflectance"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025353.h17v05.061.2026005202213",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-19",
+      "platform": "terra",
+      "tile_grid": "h17v05",
+      "bbox": [
+        -13.05,
+        30.0,
+        0.0,
+        40.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MYD13Q1.A2025345.h17v05.061.2026001024538",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-11",
+      "platform": "aqua",
+      "tile_grid": "h17v05",
+      "bbox": [
+        -13.05,
+        30.0,
+        0.0,
+        40.0
+      ],
+      "assets": [
+        "hdf",
+        "250m_16_days_EVI",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality",
+        "250m_16_days_MIR_reflectance",
+        "250m_16_days_NIR_reflectance"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025337.h17v05.061.2025353224631",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-12-03",
+      "platform": "terra",
+      "tile_grid": "h17v05",
+      "bbox": [
+        -13.05,
+        30.0,
+        0.0,
+        40.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    },
+    {
+      "stac_id": "MYD13Q1.A2025329.h17v05.061.2025356142347",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-11-25",
+      "platform": "aqua",
+      "tile_grid": "h17v05",
+      "bbox": [
+        -13.05,
+        30.0,
+        0.0,
+        40.0
+      ],
+      "assets": [
+        "hdf",
+        "250m_16_days_EVI",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality",
+        "250m_16_days_MIR_reflectance",
+        "250m_16_days_NIR_reflectance"
+      ]
+    },
+    {
+      "stac_id": "MOD13Q1.A2025321.h17v05.061.2025339121500",
+      "collection": "modis-13Q1-061",
+      "datetime": "2025-11-17",
+      "platform": "terra",
+      "tile_grid": "h17v05",
+      "bbox": [
+        -13.05,
+        30.0,
+        0.0,
+        40.0
+      ],
+      "assets": [
+        "hdf",
+        "tilejson",
+        "250m_16_days_EVI",
+        "rendered_preview",
+        "250m_16_days_NDVI",
+        "250m_16_days_VI_Quality"
+      ]
+    }
+  ]
+}
