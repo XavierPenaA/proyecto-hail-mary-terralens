@@ -32,6 +32,12 @@ When analyzing multi-decadal Earth science series across the atmosphere, hydrosp
 3. **Topographic Resolution Blindness:** During the 2023–2024 Andean hydroelectric drought in Ecuador's Paute/Mazar basin, 55 km `MERRA-2` grid cells averaged high-altitude paramo with humid Amazonian slopes, masking the valley drought.
 4. **Opposite Regional Teleconnections (Dipoles):** A single global forcing (El Niño / ENSO) drives opposite-sign extremes simultaneously across South America.
 
+#### Who Uses TerraLens (Target Users & Beneficiaries)
+* **Hydropower & Reservoir Operators:** Avoid misallocating water reserves caused by 55 km grid averaging (e.g., Paute–Mazar hydroelectric complex) or statistical noise in soil wetness.
+* **Agronomists & Agricultural Ministries:** Inspect 250 m Terra MODIS NDVI canopy stress alongside 1 km soil moisture deficits during ENSO shocks.
+* **Climate Researchers & Data Journalists:** Audit any global coordinate against persistence bias ($r_1$), satellite sensor switches (ERBE→CERES 2001), and isolated El Niño leverage before publishing multi-decadal trend claims.
+* **Educators & Citizen Scientists:** Explore 45 years of real NASA/NOAA data through an open Apache 2.0 bilingual (`EN`/`ES`) interface.
+
 #### How TerraLens v2.1 Works
 * **Long-Term Trends & Breakpoints (`Acker et al., 2009` Steps 1–3):** Computes monthly climatological normals ($\bar{X}_m \pm s_m$), deseasonalized monthly anomalies, annual mean verification, and seasonal sub-series (`DJF`, `MAM`, `JJA`, `SON`). Reports Theil-Sen median slopes alongside Santer $n_{\text{eff}}$, Hamed-Rao $p$-values, Benjamini-Hochberg FDR $q$-values, and Pettitt structural step-changes.
 * **3-Model Unsupervised Anomaly Detective & Lagged Driver Attribution:** Flags compound multi-sphere extremes where at least 2 of 3 detectors (`IsolationForest`, `LocalOutlierFactor`, `Mahalanobis Distance`) agree, decomposing each event into exact $\pm\sigma$ contributions. A supervised `HistGradientBoostingRegressor` & `RandomForest` pipeline—trained with a zero-leakage chronological split (5-fold `TimeSeriesSplit` Validation on `1981–2018` achieving $R^2 = 0.9214$, and Locked Unseen Future Test on `2019–2024` achieving $R^2 = 0.9191$, outperforming `RidgeBaseline` Test $R^2 = 0.8907$)—identifies the exact lagged atmospheric drivers of root-zone soil moisture across 55,697 observations.
