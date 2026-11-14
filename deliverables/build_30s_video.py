@@ -1,6 +1,8 @@
 import os
 import sys
+import subprocess
 import cv2
+import imageio_ffmpeg
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
@@ -272,8 +274,24 @@ def build_video(lang: str = "en"):
             cv2.imwrite(kf_path, final_bgr)
 
     writer.release()
+
+    # Re-encode to universal H.264 (yuv420p + faststart) so browsers, GitHub, and Windows Media Player play seamlessly
+    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+    tmp_h264 = out_path + ".h264.mp4"
+    subprocess.run(
+        [
+            ffmpeg_exe, "-y", "-i", out_path,
+            "-c:v", "libx264", "-preset", "medium", "-crf", "19",
+            "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+            tmp_h264,
+        ],
+        check=True,
+        capture_output=True,
+    )
+    os.replace(tmp_h264, out_path)
+
     size_mb = os.path.getsize(out_path) / (1024 * 1024)
-    print(f"Built {out_path} -> {TOTAL_FRAMES} frames ({TOTAL_FRAMES / FPS:.2f}s), {size_mb:.2f} MB")
+    print(f"Built H.264 {out_path} -> {TOTAL_FRAMES} frames ({TOTAL_FRAMES / FPS:.2f}s), {size_mb:.2f} MB")
 
 
 if __name__ == "__main__":
