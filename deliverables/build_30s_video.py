@@ -488,7 +488,7 @@ def build_video(lang: str = "en"):
             ],
             "b5_sub": "Detective Abierto de Tendencias del Sistema Terrestre",
             "b5_team": "Equipo Proyecto Hail Mary · Ecuador · Reto: Trend Detective",
-            "b5_users": "Para: Hidroeléctricas Andinas (Paute) · Riesgo ENSO · Análisis Solar/Ártico",
+            "b5_users": "Para: Analistas Climáticos e Hidrólogos · Gestión de Riesgo · Acceso EN/ES",
             "b5_lic": "Código Abierto Apache 2.0  ·  Datos NASA y NOAA 1981–2025",
         }
     else:
@@ -531,7 +531,7 @@ def build_video(lang: str = "en"):
             ],
             "b5_sub": "Open Earth System Trend Detective",
             "b5_team": "Team Proyecto Hail Mary · Ecuador · Challenge: Trend Detective",
-            "b5_users": "For: Andean Hydropower (Paute) · ENSO Risk Agencies · Solar & Arctic Analysts",
+            "b5_users": "For: Climate & Hydrology Analysts · Risk & Energy Planners · Accessible EN/ES",
             "b5_lic": "Apache 2.0 Open Source  ·  Real NASA & NOAA Telemetry (1981–2025)",
         }
 
