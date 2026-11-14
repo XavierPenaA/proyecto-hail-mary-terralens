@@ -158,8 +158,9 @@ def render_beat1(lt: float, gt: float, c: dict) -> np.ndarray:
 
     if lt > 0.45:
         jx = int(plot_x0 + 0.45 * (plot_x1 - plot_x0))
-        d.rounded_rectangle([(jx + 10, plot_y0 - 10), (jx + 235, plot_y0 + 22)], radius=5, fill=SURFACE2_RGB, outline=AMBER_RGB, width=1)
-        d.text((jx + 20, plot_y0 - 4), c["b1_jump"], font=f_badge, fill=AMBER_RGB)
+        jump_w = int(d.textlength(c["b1_jump"], font=f_badge)) + 24
+        d.rounded_rectangle([(jx + 10, plot_y0 - 10), (jx + 10 + jump_w, plot_y0 + 22)], radius=5, fill=SURFACE2_RGB, outline=AMBER_RGB, width=1)
+        d.text((jx + 22, plot_y0 - 4), c["b1_jump"], font=f_badge, fill=AMBER_RGB)
 
     # 3 crisp cards along bottom
     cards = c["b1_cards"]
@@ -451,8 +452,8 @@ def build_video(lang: str = "en"):
         copy = {
             "foot": "Proyecto Hail Mary · NASA POWER · Terra MODIS 250m · NOAA ONI · Apache 2.0",
             "b1_pill": "01 · EL PROBLEMA",
-            "b1_h1": "Casi todas las tendencias satelitales mienten.",
-            "b1_sub": "Las regresiones simples confunden memoria del suelo y saltos de satélite con cambio climático.",
+            "b1_h1": "Las regresiones simples confunden la señal.",
+            "b1_sub": "Sin filtros estadísticos, memoria del suelo, cambios de sensor y picos El Niño parecen cambio real.",
             "b1_jump": "Salto Sensor 2001 (CERES)",
             "b1_cards": [
                 ("Persistencia (r₁)", "Infla falsos p < 0.05", ROSE_RGB),
@@ -487,15 +488,15 @@ def build_video(lang: str = "en"):
             ],
             "b5_sub": "Detective Abierto de Tendencias del Sistema Terrestre",
             "b5_team": "Equipo Proyecto Hail Mary · Ecuador · Reto: Trend Detective",
-            "b5_users": "Para: Gestores Hídricos · Agrónomos · Investigadores · Educadores",
-            "b5_lic": "Código Abierto Apache 2.0  ·  6/6 Pruebas Científicas PASS",
+            "b5_users": "Para: Hidroeléctricas Andinas (Paute) · Riesgo ENSO · Análisis Solar/Ártico",
+            "b5_lic": "Código Abierto Apache 2.0  ·  Datos NASA y NOAA 1981–2025",
         }
     else:
         copy = {
             "foot": "Proyecto Hail Mary · NASA POWER · Terra MODIS 250m · NOAA ONI · Apache 2.0",
             "b1_pill": "01 · THE PROBLEM",
-            "b1_h1": "Most satellite trend lines lie.",
-            "b1_sub": "Naive regressions mistake soil memory, sensor switches & El Niño spikes for long-term shifts.",
+            "b1_h1": "Naive regressions misread raw climate trends.",
+            "b1_sub": "Unfiltered linear fits mistake soil memory, 2001 sensor shifts & El Niño spikes for secular change.",
             "b1_jump": "2001 CERES Sensor Jump",
             "b1_cards": [
                 ("Memory Noise (r₁)", "Inflates false p < 0.05", ROSE_RGB),
@@ -530,8 +531,8 @@ def build_video(lang: str = "en"):
             ],
             "b5_sub": "Open Earth System Trend Detective",
             "b5_team": "Team Proyecto Hail Mary · Ecuador · Challenge: Trend Detective",
-            "b5_users": "Built for: Water Planners · Agronomists · Scientists · Educators",
-            "b5_lic": "Apache 2.0 Open Source  ·  6/6 Scientific Tests Verified",
+            "b5_users": "For: Andean Hydropower (Paute) · ENSO Risk Agencies · Solar & Arctic Analysts",
+            "b5_lic": "Apache 2.0 Open Source  ·  Real NASA & NOAA Telemetry (1981–2025)",
         }
 
     # Exact 30.00s choreography (900 frames @ 30fps)

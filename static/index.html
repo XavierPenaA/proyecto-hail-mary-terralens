@@ -2258,9 +2258,9 @@
                 <div class="guide-card">
                   <div class="guide-card-title">
                     <span class="guide-step-num">1</span>
-                    <span>The Problem It Attacks (Why Naive Trend Dashboards Lie)</span>
+                    <span>The Problem It Attacks (Statistical Traps in Raw Climate Series)</span>
                   </div>
-                  <p>Calculating a textbook linear regression directly on raw satellite grids regularly produces convincing but scientifically false climate claims across three failure modes:</p>
+                  <p>Calculating a standard linear regression directly on raw grid series often produces convincing but misleading trend claims across three well-documented pitfalls:</p>
                   <ul class="guide-list">
                     <li><strong>Trap #1 — Autocorrelation Inflation:</strong> Monthly soil moisture remembers prior months (<code>r₁ &gt; 0.6</code>). Treating 540 correlated months as independent samples produces false <code>p &lt; 0.05</code> alerts where <strong>Hamed-Rao / Santer adjustments</strong> prove zero secular trend (e.g., Paute soil moisture drops from naive <code>p = 0.030</code> to <code>p = 0.728</code>).</li>
                     <li><strong>Trap #2 — Satellite Instrument Splicing:</strong> NASA POWER surface solar radiation switches from ERBE/SRB (1984–2000) to CERES radiometers in <strong>Jan 2001</strong>. Unfiltered trends mistake that calibration jump (<code>1999-05</code> break, <code>p = 1.10e-16</code>) for dimming or brightening.</li>
@@ -2298,12 +2298,12 @@
                 <div class="guide-card">
                   <div class="guide-card-title">
                     <span class="guide-step-num">4</span>
-                    <span>Who Uses TerraLens, Validation & Open Access</span>
+                    <span>Who TerraLens Serves (Operational Use Cases)</span>
                   </div>
                   <ul class="guide-list">
-                    <li><strong>Target End-Users:</strong> Built for <strong>hydropower & watershed planners</strong> (reservoir drought auditing), <strong>agronomists</strong> (250 m crop water stress), <strong>climate scientists</strong> (false-trend rejection), and <strong>educators</strong> teaching reproducible Earth science.</li>
-                    <li><strong>6/6 Automated Scientific Tests:</strong> Verifies Traps #1–#2, ENSO dipole polarity, 3-model ML consensus, and 96-cell + MODIS multi-scale payloads continuously.</li>
-                    <li><strong>True Multi-Scale Resolution & Live Global Probe:</strong> Connects NASA POWER (<code>~55 km</code>), <code>1 km</code> Meteomatics terrain, and <code>250 m</code> Terra MODIS NDVI—plus instant coordinate auditing anywhere on Earth.</li>
+                    <li><strong>Andean Hydropower & Reservoir Dispatchers (e.g., Paute–Mazar):</strong> Isolate persistent hydrological warming (<code>+0.197 °C/decade</code>) from 55 km grid averaging by zooming into <code>1 km</code> terrain deficits and <code>250 m</code> MODIS NDVI passes.</li>
+                    <li><strong>Coastal & Amazon Flood / Drought Risk Agencies (Guayas · Manaus · Pantanal):</strong> Separate single-season El Niño shock floods (1997–98) from structural rainfall changes and track the opposite South American ENSO Dipole (<code>r = +0.209 vs -0.329</code>).</li>
+                    <li><strong>Solar Energy & Polar Cryosphere Analysts:</strong> Audit ERBE-to-CERES (2001) satellite sensor boundaries and quantify non-stationary Arctic amplification (<code>+0.579 °C/decade</code> in Utqiaġvik vs. Mississippi reference baselines) on any global coordinate.</li>
                   </ul>
                 </div>
               </div>
@@ -2339,9 +2339,9 @@
                 <div class="guide-card">
                   <div class="guide-card-title">
                     <span class="guide-step-num">1</span>
-                    <span>¿Qué problema ataca TerraLens? (Por qué mienten las tendencias simples)</span>
+                    <span>¿Qué problema ataca TerraLens? (Trampas Estadísticas en Series Brutas)</span>
                   </div>
-                  <p>Aplicar una regresión lineal común sobre series satelitales crudas genera conclusiones climáticamente convincentes pero falsas por tres trampas estadísticas:</p>
+                  <p>Aplicar una regresión lineal común directamente sobre series espaciales crudas suele inducir conclusiones erróneas por tres trampas metodológicas concretas:</p>
                   <ul class="guide-list">
                     <li><strong>Trampa #1 — Inflación por Autocorrelación:</strong> La humedad del suelo recuerda meses anteriores (<code>r₁ &gt; 0.6</code>). Tratar 540 meses como independientes produce falsos positivos (<code>p &lt; 0.05</code>) que desaparecen al corregir la varianza con <strong>Hamed-Rao y Santer</strong> (ej. Paute pasa de <code>p = 0.030</code> a <code>p = 0.728</code>).</li>
                     <li><strong>Trampa #2 — Quiebres Instrumentales de Satélite:</strong> La radiación solar en NASA POWER cambia de radiómetros ERBE/SRB (1984–2000) a sensores <strong>CERES</strong> en enero de 2001. Sin filtrar esa frontera, un salto de calibración (<code>1999-05</code>, <code>p = 1.10e-16</code>) parece cambio climático.</li>
@@ -2379,12 +2379,12 @@
                 <div class="guide-card">
                   <div class="guide-card-title">
                     <span class="guide-step-num">4</span>
-                    <span>¿Quién usa TerraLens?, Validación y Acceso Abierto</span>
+                    <span>¿Para quién sirve? (Aplicaciones Operativas Reales)</span>
                   </div>
                   <ul class="guide-list">
-                    <li><strong>Grupos de Usuarios Objetivo:</strong> Diseñado para <strong>planificadores hidroeléctricos e hídricos</strong> (gestión de embalses y sequías), <strong>agrónomos</strong> (estrés vegetal a 250 m), <strong>investigadores climáticos</strong> (auditoría sin falsos positivos) y <strong>docentes/estudiantes</strong> en inglés o español.</li>
-                    <li><strong>Suite Científica 6/6 PASS:</strong> Valida automáticamente las Trampas #1–#2, polaridad del dipolo ENSO, consenso ML y fusión multi-escala en cada despliegue.</li>
-                    <li><strong>Verdadera Resolución Multi-Escala y Sonda Global:</strong> Conecta NASA POWER (<code>~55 km</code>), terreno a <code>1 km</code> y vegetación MODIS NDVI a <code>250 m</code>, más consulta instantánea para cualquier punto del planeta.</li>
+                    <li><strong>Operadores Hidroeléctricos y de Embalses Andinos (ej. Paute–Mazar):</strong> Separan el calentamiento estructural (<code>+0.197 °C/década</code>) de promedios gruesos a 55 km bajando a déficits topográficos de <code>1 km</code> y <code>250 m</code> MODIS NDVI.</li>
+                    <li><strong>Agencias de Riesgo Hídrico Costa–Amazonía (Guayas · Manaos · Pantanal):</strong> Distinguen picos aislados de El Niño (1997–98) de tendencias reales de lluvia y monitorean el Dipolo ENSO Sudamericano opuesto (<code>r = +0.209 vs -0.329</code>).</li>
+                    <li><strong>Analistas Solares y de Cambio Polar:</strong> Detectan quiebres por cambio de sensor satelital (ERBE→CERES 2001) y miden la amplificación ártica no estacionaria (<code>+0.579 °C/década</code> en Utqiaġvik vs. Delta del Misisipi) en cualquier coordenada del planeta.</li>
                   </ul>
                 </div>
               </div>
