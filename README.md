@@ -1,7 +1,7 @@
 # TerraLens — Earth System Trend Detective
 
 **2026 NASA International Space Apps Challenge** · Challenge: [Be An Earth System Trend Detective!](https://www.spaceappschallenge.org/2026/challenges/earth-system-trend-detective/)
-**Team:** [Proyecto Hail Mary](https://www.spaceappschallenge.org/2026/find-a-team/proyecto-hail-mary/) (Ecuador) — Xavier Sebastián Peña Avilés, Bryam Astudillo, Juan Jose Coronel Crespo, David Sebastián Célleri Bojorque
+**Team:** [Proyecto Hail Mary](https://www.spaceappschallenge.org/2026/find-a-team/proyecto-hail-mary/) (Ecuador) — Xavier Sebastián Peña Avilés, Bryam Raymund Astudillo Arpi, Juan Jose Coronel Crespo, David Sebastián Célleri Bojorque
 **License:** [Apache 2.0](LICENSE) · data and library licenses in [SOURCES_AND_LICENSES.md](SOURCES_AND_LICENSES.md)
 
 ---

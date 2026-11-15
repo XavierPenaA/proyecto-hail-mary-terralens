@@ -48,5 +48,5 @@ TerraLens's own code, documentation and visuals are licensed under the **Apache 
 
 ## 4. Team and AI disclosure
 
-- **Team:** Proyecto Hail Mary (Ecuador) — Xavier Sebastián Peña Avilés (team owner), Bryam Astudillo, Juan Jose Coronel Crespo, David Sebastián Célleri Bojorque.
+- **Team:** Proyecto Hail Mary (Ecuador) — Xavier Sebastián Peña Avilés (team owner), Bryam Raymund Astudillo Arpi, Juan Jose Coronel Crespo, David Sebastián Célleri Bojorque.
 - **AI disclosure:** AI coding assistants were used for software engineering, the bilingual interface, visualization code, tests and documentation. All statistics run deterministically on the cached NASA and NOAA data with fixed random seeds.
