@@ -327,7 +327,7 @@
       <div class="slide-top">
         <div class="brand-mark">
           <span class="brand-dot"></span>
-          <span>TerraLens v2.1</span>
+          <span>TerraLens v2.2</span>
         </div>
         <div class="slide-tag" data-en="NASA Space Apps 2026 · Team Proyecto Hail Mary" data-es="NASA Space Apps 2026 · Equipo Proyecto Hail Mary">NASA Space Apps 2026 · Team Proyecto Hail Mary</div>
       </div>
@@ -507,7 +507,7 @@
       <div class="slide-body split-2">
         <div style="display:flex;flex-direction:column;gap:14px;">
           <h2 class="slide-h2" data-en="Every model is compared with persistence" data-es="Cada modelo se compara con la persistencia">Every model is compared with persistence</h2>
-          <p class="card-text" data-en="A nowcast that uses same-month weather scores high, but forecasting is the honest test: one month ahead the best model gains about 0.03 R² over persistence, three months ahead nothing. The app also shows where models fail, such as the Arctic." data-es="Un nowcast que usa el clima del mismo mes puntúa alto, pero la prueba honesta es pronosticar: a un mes el mejor modelo gana unos 0.03 de R² sobre la persistencia y a tres meses nada. La app también muestra dónde fallan los modelos, como en el Ártico."></p>
+          <p class="card-text" data-en="We select models with chronological validation. On the held-out years, the selected forecast gains about 0.02 R² at one month and less than 0.01 at three months." data-es="Elegimos los modelos con validación cronológica. En los años de prueba, el pronóstico elegido gana unos 0.02 de R² a un mes y menos de 0.01 a tres meses."></p>
           <table class="clean-table">
             <thead>
               <tr>
@@ -520,26 +520,26 @@
             <tbody>
               <tr>
                 <td>Persistence (baseline)</td>
-                <td class="num">0.803</td>
+                <td class="num">0.772</td>
                 <td class="num">0.758</td>
                 <td class="num">0.419</td>
               </tr>
               <tr>
-                <td>Ridge regression</td>
-                <td class="num">0.914</td>
+                <td style="color:var(--ink);font-weight:600;">Ridge regression</td>
+                <td class="num" style="color:var(--emerald);font-weight:700;">0.875</td>
                 <td class="num">0.892</td>
                 <td class="num">0.280</td>
               </tr>
               <tr>
                 <td>Random Forest</td>
-                <td class="num">0.908</td>
+                <td class="num">0.801</td>
                 <td class="num">0.908</td>
                 <td class="num">0.259</td>
               </tr>
               <tr>
-                <td style="color:var(--ink);font-weight:600;">HistGradientBoosting</td>
-                <td class="num">0.921</td>
-                <td class="num" style="color:var(--emerald);font-weight:700;">0.925</td>
+                <td>HistGradientBoosting</td>
+                <td class="num">0.818</td>
+                <td class="num">0.925</td>
                 <td class="num">0.234</td>
               </tr>
             </tbody>
@@ -552,7 +552,7 @@
       </div>
 
       <div class="slide-foot">
-        <span data-en="Development 1981–2018 · test 2019–2025 · 5-fold TimeSeriesSplit" data-es="Desarrollo 1981–2018 · test 2019–2025 · TimeSeriesSplit de 5 pliegues">Development 1981–2018 · test 2019–2025 · 5-fold TimeSeriesSplit</span>
+        <span data-en="Development 1981–2018 · test 2019–2025 · five whole-month folds" data-es="Desarrollo 1981–2018 · prueba 2019–2025 · cinco pliegues de meses completos">Development 1981–2018 · test 2019–2025 · five whole-month folds</span>
         <span class="slide-tag">05 / 07</span>
       </div>
     </section>
@@ -623,7 +623,7 @@
             <div style="font-size:15px;font-weight:700;color:var(--ink);" data-en="Team Proyecto Hail Mary — Xavier Sebastián Peña Avilés, Bryam Astudillo, Juan Jose Coronel Crespo &amp; David Sebastián Célleri Bojorque (Ecuador)" data-es="Equipo Proyecto Hail Mary — Xavier Sebastián Peña Avilés, Bryam Astudillo, Juan Jose Coronel Crespo y David Sebastián Célleri Bojorque (Ecuador)">Team Proyecto Hail Mary — Xavier Sebastián Peña Avilés, Bryam Astudillo, Juan Jose Coronel Crespo &amp; David Sebastián Célleri Bojorque (Ecuador)</div>
             <div style="font-size:12.5px;color:var(--muted);margin-top:3px;" data-en="Target Users: Environmental &amp; Climate Analysts · Water, Energy &amp; Hazard Planners · Open Science (Apache 2.0)" data-es="Público Objetivo: Analistas Ambientales y Climáticos · Gestores de Riesgo, Agua y Energía · Código Abierto Apache 2.0">Target Users: Environmental &amp; Climate Analysts · Water, Energy &amp; Hazard Planners · Open Science (Apache 2.0)</div>
           </div>
-          <span class="pill" style="border-color:var(--accent);color:var(--accent);">TerraLens v2.1</span>
+          <span class="pill" style="border-color:var(--accent);color:var(--accent);">TerraLens v2.2</span>
         </div>
       </div>
 

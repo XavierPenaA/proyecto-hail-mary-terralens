@@ -17,20 +17,16 @@ from playwright.sync_api import sync_playwright
 DELIVERABLES = Path(__file__).resolve().parent
 ASSETS = DELIVERABLES / "assets"
 DECK = DELIVERABLES / "terralens_pitch_7_slides.html"
-READY = (
-    "() => document.getElementById('kpiSlope')?.textContent.trim() !== '—'"
-    " && document.getElementById('loadingIndicator').style.display === 'none'"
-)
 IDLE = "() => document.getElementById('loadingIndicator').style.display === 'none'"
 
-# screenshot file -> (query string, element to wait for, extra wait in ms)
+# screenshot file -> (query string, ready element, panel to frame, animation wait in ms)
 SHOTS = {
-    "app_trends.png": ("?lang=en&theme=dark", None, 600),
-    "app_acker.png": ("?lang=en&theme=dark&region=BR_Pantanal&tab=tab-acker", None, 800),
-    "app_telemetry.png": ("?lang=en&theme=dark&tab=tab-telemetry", "#cvLeaderboardBody tr", 800),
-    "app_dipole.png": ("?lang=en&theme=dark&tab=tab-dipole", "#dipoleSummaryStrip .kpi-card", 1500),
-    "app_map_global.png": ("?lang=en&theme=dark&tab=tab-multiscale", "#stacTableBody tr", 2500),
-    "app_about.png": ("?lang=en&theme=dark&tab=tab-about", None, 500),
+    "app_trends.png": ("?lang=en&theme=dark", "#answerText:not(:empty)", "#answerCard", 600),
+    "app_acker.png": ("?lang=en&theme=dark&region=BR_Pantanal&tab=tab-acker", "#ackerTableBody tr", "#tab-acker", 800),
+    "app_telemetry.png": ("?lang=en&theme=dark&tab=tab-telemetry", "#cvLeaderboardBody tr", "#tab-telemetry", 800),
+    "app_dipole.png": ("?lang=en&theme=dark&tab=tab-dipole", "#dipoleSummaryStrip .kpi-card", "#tab-dipole", 1500),
+    "app_map_global.png": ("?lang=en&theme=dark&tab=tab-multiscale", "#stacTableBody tr", "#mapPanel", 2500),
+    "app_about.png": ("?lang=en&theme=dark&tab=tab-about", "#tab-about.active", "#tab-about", 500),
 }
 
 
@@ -39,12 +35,11 @@ def capture(browser, base_url: str) -> list:
     page = browser.new_page(viewport={"width": 1520, "height": 900}, device_scale_factor=2)
     page.on("pageerror", lambda e: errors.append(str(e)))
     page.on("console", lambda m: errors.append(m.text) if m.type == "error" else None)
-    for name, (query, selector, wait_ms) in SHOTS.items():
+    for name, (query, selector, panel, wait_ms) in SHOTS.items():
         page.goto(f"{base_url}/{query}", wait_until="domcontentloaded", timeout=60000)
-        page.wait_for_function(READY, timeout=120000)
-        if selector:
-            page.wait_for_selector(selector, timeout=60000)
+        page.wait_for_selector(selector, timeout=120000)
         page.wait_for_function(IDLE, timeout=60000)
+        page.locator(panel).evaluate("(panel) => panel.scrollIntoView({block: 'start', behavior: 'instant'})")
         page.wait_for_timeout(wait_ms)
         page.screenshot(path=str(ASSETS / name))
         print("captured", name)

@@ -1,0 +1,16 @@
+*
+!requirements.txt
+!LICENSE
+!SOURCES_AND_LICENSES.md
+!api.py
+!core/
+!core/**
+!static/
+!static/**
+!data/
+!data/cache/
+!data/cache/**
+!models/
+!models/training_manifest.json
+data/cache/live/
+**/__pycache__/
