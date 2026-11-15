@@ -25,7 +25,7 @@ export function initialLanguage() {
   if (LANGUAGES.includes(param)) return param;
   const saved = storage.get(STORAGE_KEY);
   if (LANGUAGES.includes(saved)) return saved;
-  return (navigator.language || 'en').toLowerCase().startsWith('es') ? 'es' : 'en';
+  return 'en';
 }
 
 export const getLang = () => current;
