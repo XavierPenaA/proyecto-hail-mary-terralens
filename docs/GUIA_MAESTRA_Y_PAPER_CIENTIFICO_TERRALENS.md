@@ -128,6 +128,20 @@ Se aplica a las seis variables de una región y a las 96 celdas del mapa (signif
 
 El costo es potencia: con φ = 0,7, una tendencia de 0,2σ por década se detecta el 69 % de las veces (Hamed-Rao solo: 85 %), y con 0,4σ el 99,9 %. El BIC con n_eff casi no genera saltos falsos (≤ 0,2 %) pero también detecta menos saltos reales cuando hay mucha memoria: un salto de 2σ se encuentra en el 82 % de los casos con φ = 0,7 y en el 7 % con φ = 0,95. Con la regla corregida, 11 de las 66 series región × variable (casi todas de humedad del suelo, r₁ ≈ 0,83–0,94) pasaron de significativas a `autocorr_rejected` o débiles.
 
+### 4.9 Contraste independiente con ERA5-Land
+`scripts/fetch_era5land.py` descarga ERA5-Land (Open-Meteo, sin cuenta) y `scripts/validate_era5land.py` lo compara con MERRA-2 mes a mes en las 11 regiones (`models/era5land_validation.json`). ERA5-Land es otro modelo de suelo con otro forzamiento, pero sigue siendo un reanálisis; mide acuerdo entre dos productos, no error contra la realidad.
+
+| Variable | Regiones | r mediana de anomalías | Regiones con r < 0,5 | Significativa en MERRA-2 / ERA5-Land | Ambas significativas y mismo signo |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| Temperatura | 11 | 0,89 | 1 | 9 / 8 | 7 de 7 |
+| Humedad radicular | 10 | 0,41 | 6 | 2 / 3 | 1 de 2 |
+| Humedad superficial | 10 | 0,51 | 5 | 2 / 3 | 1 de 2 |
+
+- La temperatura concuerda, aunque en tres regiones el veredicto difiere (Guayas y Paute: solo MERRA-2 ve tendencia; Napo: solo ERA5-Land).
+- La humedad del suelo concuerda poco en la variabilidad mensual y no confirma las tendencias. El caso más claro es Napo: MERRA-2 sube (+0,49 desviaciones por década, quiebre en 2007-08) y ERA5-Land baja, sin ese quiebre. Es coherente con un cambio en los datos de entrada de MERRA-2, no con una señal climática.
+- Pantanal es el único caso donde ambos productos ven la misma bajada significativa de humedad radicular (y de la superficial).
+- Límites: ERA5-Land entrega humedad volumétrica (m³/m³) y MERRA-2 una fracción de saturación, por eso se comparan anomalías; la celda del Altiplano es una constante (0,021) en ERA5-Land y se excluye; la precipitación de ERA5-Land no se obtuvo, así que esa variable queda sin contrastar. SMAP (verdad satelital, desde 2015) sigue pendiente porque exige credenciales de Earthdata.
+
 ---
 
 ## 5. Machine learning y su línea base

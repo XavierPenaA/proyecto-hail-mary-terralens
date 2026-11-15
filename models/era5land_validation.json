@@ -1,0 +1,836 @@
+{
+  "summary": {
+    "T2M": {
+      "regions": 11,
+      "median_anomaly_r": 0.886,
+      "min_anomaly_r": 0.407,
+      "verdict_conflicts": 3,
+      "opposite_direction_when_both_significant": 0,
+      "median_slope_gap_sd": 0.051
+    },
+    "GWETROOT": {
+      "regions": 10,
+      "median_anomaly_r": 0.406,
+      "min_anomaly_r": 0.103,
+      "verdict_conflicts": 1,
+      "opposite_direction_when_both_significant": 1,
+      "median_slope_gap_sd": 0.125
+    },
+    "GWETTOP": {
+      "regions": 10,
+      "median_anomaly_r": 0.507,
+      "min_anomaly_r": 0.185,
+      "verdict_conflicts": 1,
+      "opposite_direction_when_both_significant": 1,
+      "median_slope_gap_sd": 0.081
+    }
+  },
+  "rows": [
+    {
+      "region": "EC_Coast_Guayas",
+      "merra_var": "T2M",
+      "era5_var": "T2M",
+      "anomaly_r": 0.407,
+      "n_eff": 118.9,
+      "merra": {
+        "verdict": "sig_increase",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.26521833494315755,
+        "break_date": "2002-06",
+        "break_significant": true
+      },
+      "era5": {
+        "verdict": "not_significant",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.15921812475676883,
+        "break_date": "2014-04",
+        "break_significant": true
+      },
+      "both_significant": false,
+      "same_direction": true,
+      "verdict_conflict": true,
+      "slope_gap_sd": 0.106,
+      "break_year_gap": 12
+    },
+    {
+      "region": "EC_Coast_Guayas",
+      "merra_var": "GWETROOT",
+      "era5_var": "SM_ROOT",
+      "anomaly_r": 0.255,
+      "n_eff": 171.1,
+      "merra": {
+        "verdict": "not_significant",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.008415001336172977,
+        "break_date": "2002-11",
+        "break_significant": false
+      },
+      "era5": {
+        "verdict": "not_significant",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.03707731594008094,
+        "break_date": "2008-11",
+        "break_significant": false
+      },
+      "both_significant": false,
+      "same_direction": true,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.029,
+      "break_year_gap": 6
+    },
+    {
+      "region": "EC_Coast_Guayas",
+      "merra_var": "GWETTOP",
+      "era5_var": "SM_TOP",
+      "anomaly_r": 0.336,
+      "n_eff": 236.1,
+      "merra": {
+        "verdict": "not_significant",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.015529776099407647,
+        "break_date": "2003-03",
+        "break_significant": false
+      },
+      "era5": {
+        "verdict": "not_significant",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.0009347282880475978,
+        "break_date": "1994-11",
+        "break_significant": false
+      },
+      "both_significant": false,
+      "same_direction": false,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.016,
+      "break_year_gap": 9
+    },
+    {
+      "region": "EC_Andes_Paute",
+      "merra_var": "T2M",
+      "era5_var": "T2M",
+      "anomaly_r": 0.662,
+      "n_eff": 226.5,
+      "merra": {
+        "verdict": "sig_increase",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.37161521740323944,
+        "break_date": "2002-11",
+        "break_significant": true
+      },
+      "era5": {
+        "verdict": "not_significant",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.10347297229675406,
+        "break_date": "2004-09",
+        "break_significant": true
+      },
+      "both_significant": false,
+      "same_direction": true,
+      "verdict_conflict": true,
+      "slope_gap_sd": 0.268,
+      "break_year_gap": 2
+    },
+    {
+      "region": "EC_Andes_Paute",
+      "merra_var": "GWETROOT",
+      "era5_var": "SM_ROOT",
+      "anomaly_r": 0.183,
+      "n_eff": 231.6,
+      "merra": {
+        "verdict": "autocorr_rejected",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.09977158350895866,
+        "break_date": "2011-03",
+        "break_significant": false
+      },
+      "era5": {
+        "verdict": "not_significant",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.0024604348180518117,
+        "break_date": "2016-11",
+        "break_significant": false
+      },
+      "both_significant": false,
+      "same_direction": true,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.097,
+      "break_year_gap": 5
+    },
+    {
+      "region": "EC_Andes_Paute",
+      "merra_var": "GWETTOP",
+      "era5_var": "SM_TOP",
+      "anomaly_r": 0.185,
+      "n_eff": 241.5,
+      "merra": {
+        "verdict": "autocorr_rejected",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.07445475162614613,
+        "break_date": "2011-03",
+        "break_significant": false
+      },
+      "era5": {
+        "verdict": "not_significant",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.008354703551249568,
+        "break_date": "1994-10",
+        "break_significant": false
+      },
+      "both_significant": false,
+      "same_direction": false,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.083,
+      "break_year_gap": 17
+    },
+    {
+      "region": "EC_Andes_Quito",
+      "merra_var": "T2M",
+      "era5_var": "T2M",
+      "anomaly_r": 0.886,
+      "n_eff": 145.7,
+      "merra": {
+        "verdict": "sig_increase",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.4427561537720501,
+        "break_date": "2001-07",
+        "break_significant": true
+      },
+      "era5": {
+        "verdict": "sig_increase",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.292877735170249,
+        "break_date": "2012-06",
+        "break_significant": true
+      },
+      "both_significant": true,
+      "same_direction": true,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.15,
+      "break_year_gap": 11
+    },
+    {
+      "region": "EC_Andes_Quito",
+      "merra_var": "GWETROOT",
+      "era5_var": "SM_ROOT",
+      "anomaly_r": 0.161,
+      "n_eff": 208.1,
+      "merra": {
+        "verdict": "not_significant",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.14016929572684242,
+        "break_date": "2001-08",
+        "break_significant": false
+      },
+      "era5": {
+        "verdict": "not_significant",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.017656086401036112,
+        "break_date": "2016-11",
+        "break_significant": false
+      },
+      "both_significant": false,
+      "same_direction": false,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.158,
+      "break_year_gap": 15
+    },
+    {
+      "region": "EC_Andes_Quito",
+      "merra_var": "GWETTOP",
+      "era5_var": "SM_TOP",
+      "anomaly_r": 0.214,
+      "n_eff": 286.6,
+      "merra": {
+        "verdict": "autocorr_rejected",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.15095111368274564,
+        "break_date": "2001-05",
+        "break_significant": true
+      },
+      "era5": {
+        "verdict": "not_significant",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.005260211423966706,
+        "break_date": "2016-08",
+        "break_significant": false
+      },
+      "both_significant": false,
+      "same_direction": false,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.156,
+      "break_year_gap": 15
+    },
+    {
+      "region": "EC_Amazon_Napo",
+      "merra_var": "T2M",
+      "era5_var": "T2M",
+      "anomaly_r": 0.572,
+      "n_eff": 215.3,
+      "merra": {
+        "verdict": "not_significant",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.015775296298914325,
+        "break_date": "2007-08",
+        "break_significant": false
+      },
+      "era5": {
+        "verdict": "sig_increase",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.2559702986922947,
+        "break_date": "2004-09",
+        "break_significant": true
+      },
+      "both_significant": false,
+      "same_direction": false,
+      "verdict_conflict": true,
+      "slope_gap_sd": 0.272,
+      "break_year_gap": 3
+    },
+    {
+      "region": "EC_Amazon_Napo",
+      "merra_var": "GWETROOT",
+      "era5_var": "SM_ROOT",
+      "anomaly_r": 0.103,
+      "n_eff": 394.8,
+      "merra": {
+        "verdict": "sig_increase",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.4895566807631277,
+        "break_date": "2007-08",
+        "break_significant": true
+      },
+      "era5": {
+        "verdict": "sig_decrease",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.09164252052510402,
+        "break_date": "2014-05",
+        "break_significant": true
+      },
+      "both_significant": true,
+      "same_direction": false,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.581,
+      "break_year_gap": 7
+    },
+    {
+      "region": "EC_Amazon_Napo",
+      "merra_var": "GWETTOP",
+      "era5_var": "SM_TOP",
+      "anomaly_r": 0.192,
+      "n_eff": 347.6,
+      "merra": {
+        "verdict": "sig_increase",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.45807318580702283,
+        "break_date": "2007-08",
+        "break_significant": true
+      },
+      "era5": {
+        "verdict": "sig_decrease",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.07705971637777323,
+        "break_date": "2006-02",
+        "break_significant": true
+      },
+      "both_significant": true,
+      "same_direction": false,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.535,
+      "break_year_gap": 1
+    },
+    {
+      "region": "EC_Galapagos",
+      "merra_var": "T2M",
+      "era5_var": "T2M",
+      "anomaly_r": 0.955,
+      "n_eff": 70.5,
+      "merra": {
+        "verdict": "not_significant",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.05838060063866923,
+        "break_date": "1997-01",
+        "break_significant": false
+      },
+      "era5": {
+        "verdict": "autocorr_rejected",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.08519671646690949,
+        "break_date": "2008-03",
+        "break_significant": false
+      },
+      "both_significant": false,
+      "same_direction": true,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.027,
+      "break_year_gap": 11
+    },
+    {
+      "region": "EC_Galapagos",
+      "merra_var": "GWETROOT",
+      "era5_var": "SM_ROOT",
+      "anomaly_r": 0.745,
+      "n_eff": 62.3,
+      "merra": {
+        "verdict": "not_significant",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.0,
+        "break_date": "2014-02",
+        "break_significant": false
+      },
+      "era5": {
+        "verdict": "marginal_decrease",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.18345571536297678,
+        "break_date": "2003-01",
+        "break_significant": true
+      },
+      "both_significant": false,
+      "same_direction": true,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.183,
+      "break_year_gap": 11
+    },
+    {
+      "region": "EC_Galapagos",
+      "merra_var": "GWETTOP",
+      "era5_var": "SM_TOP",
+      "anomaly_r": 0.749,
+      "n_eff": 141.4,
+      "merra": {
+        "verdict": "autocorr_rejected",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.0707561181980954,
+        "break_date": "1991-11",
+        "break_significant": false
+      },
+      "era5": {
+        "verdict": "not_significant",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.007781829151253754,
+        "break_date": "1998-11",
+        "break_significant": false
+      },
+      "both_significant": false,
+      "same_direction": false,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.079,
+      "break_year_gap": 7
+    },
+    {
+      "region": "BR_Amazon_Manaus",
+      "merra_var": "T2M",
+      "era5_var": "T2M",
+      "anomaly_r": 0.814,
+      "n_eff": 132.4,
+      "merra": {
+        "verdict": "sig_increase",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.25671387181512123,
+        "break_date": "2001-09",
+        "break_significant": true
+      },
+      "era5": {
+        "verdict": "sig_increase",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.32809981460123955,
+        "break_date": "2009-06",
+        "break_significant": true
+      },
+      "both_significant": true,
+      "same_direction": true,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.071,
+      "break_year_gap": 8
+    },
+    {
+      "region": "BR_Amazon_Manaus",
+      "merra_var": "GWETROOT",
+      "era5_var": "SM_ROOT",
+      "anomaly_r": 0.357,
+      "n_eff": 83.5,
+      "merra": {
+        "verdict": "autocorr_rejected",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.2306173007129395,
+        "break_date": "2002-08",
+        "break_significant": true
+      },
+      "era5": {
+        "verdict": "sig_decrease",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.1855076867429228,
+        "break_date": "2009-07",
+        "break_significant": true
+      },
+      "both_significant": false,
+      "same_direction": true,
+      "verdict_conflict": true,
+      "slope_gap_sd": 0.045,
+      "break_year_gap": 7
+    },
+    {
+      "region": "BR_Amazon_Manaus",
+      "merra_var": "GWETTOP",
+      "era5_var": "SM_TOP",
+      "anomaly_r": 0.447,
+      "n_eff": 112.6,
+      "merra": {
+        "verdict": "marginal_decrease",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.23251756571433363,
+        "break_date": "2002-08",
+        "break_significant": true
+      },
+      "era5": {
+        "verdict": "sig_decrease",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.13547389045953556,
+        "break_date": "2009-07",
+        "break_significant": true
+      },
+      "both_significant": false,
+      "same_direction": true,
+      "verdict_conflict": true,
+      "slope_gap_sd": 0.097,
+      "break_year_gap": 7
+    },
+    {
+      "region": "BR_Pantanal",
+      "merra_var": "T2M",
+      "era5_var": "T2M",
+      "anomaly_r": 0.788,
+      "n_eff": 322.8,
+      "merra": {
+        "verdict": "sig_increase",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.3486467699994519,
+        "break_date": "2011-06",
+        "break_significant": true
+      },
+      "era5": {
+        "verdict": "sig_increase",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.3477676649812793,
+        "break_date": "2001-06",
+        "break_significant": true
+      },
+      "both_significant": true,
+      "same_direction": true,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.001,
+      "break_year_gap": 10
+    },
+    {
+      "region": "BR_Pantanal",
+      "merra_var": "GWETROOT",
+      "era5_var": "SM_ROOT",
+      "anomaly_r": 0.456,
+      "n_eff": 66.0,
+      "merra": {
+        "verdict": "sig_decrease",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.1677830073097226,
+        "break_date": "1997-09",
+        "break_significant": true
+      },
+      "era5": {
+        "verdict": "sig_decrease",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.44752317456989216,
+        "break_date": "2002-03",
+        "break_significant": true
+      },
+      "both_significant": true,
+      "same_direction": true,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.28,
+      "break_year_gap": 5
+    },
+    {
+      "region": "BR_Pantanal",
+      "merra_var": "GWETTOP",
+      "era5_var": "SM_TOP",
+      "anomaly_r": 0.567,
+      "n_eff": 189.5,
+      "merra": {
+        "verdict": "sig_decrease",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.2936080660875539,
+        "break_date": "1997-08",
+        "break_significant": true
+      },
+      "era5": {
+        "verdict": "sig_decrease",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.3660813208141863,
+        "break_date": "2002-02",
+        "break_significant": true
+      },
+      "both_significant": true,
+      "same_direction": true,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.072,
+      "break_year_gap": 5
+    },
+    {
+      "region": "PE_Altiplano",
+      "merra_var": "T2M",
+      "era5_var": "T2M",
+      "anomaly_r": 0.907,
+      "n_eff": 214.7,
+      "merra": {
+        "verdict": "sig_increase",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.37293646151991666,
+        "break_date": "2004-08",
+        "break_significant": true
+      },
+      "era5": {
+        "verdict": "sig_increase",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.4032774184943054,
+        "break_date": "2004-09",
+        "break_significant": true
+      },
+      "both_significant": true,
+      "same_direction": true,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.03,
+      "break_year_gap": 0
+    },
+    {
+      "region": "US_Mississippi_Delta",
+      "merra_var": "T2M",
+      "era5_var": "T2M",
+      "anomaly_r": 0.965,
+      "n_eff": 448.0,
+      "merra": {
+        "verdict": "sig_increase",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.24467847162423353,
+        "break_date": "1998-04",
+        "break_significant": true
+      },
+      "era5": {
+        "verdict": "sig_increase",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.20510540368472008,
+        "break_date": "2004-08",
+        "break_significant": true
+      },
+      "both_significant": true,
+      "same_direction": true,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.04,
+      "break_year_gap": 6
+    },
+    {
+      "region": "US_Mississippi_Delta",
+      "merra_var": "GWETROOT",
+      "era5_var": "SM_ROOT",
+      "anomaly_r": 0.634,
+      "n_eff": 166.5,
+      "merra": {
+        "verdict": "autocorr_rejected",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.16125990639333307,
+        "break_date": "1998-05",
+        "break_significant": true
+      },
+      "era5": {
+        "verdict": "not_significant",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.00819085636493357,
+        "break_date": "1998-03",
+        "break_significant": false
+      },
+      "both_significant": false,
+      "same_direction": true,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.153,
+      "break_year_gap": 0
+    },
+    {
+      "region": "US_Mississippi_Delta",
+      "merra_var": "GWETTOP",
+      "era5_var": "SM_TOP",
+      "anomaly_r": 0.589,
+      "n_eff": 306.8,
+      "merra": {
+        "verdict": "autocorr_rejected",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.1599818123780605,
+        "break_date": "1998-05",
+        "break_significant": true
+      },
+      "era5": {
+        "verdict": "not_significant",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.03260323633281907,
+        "break_date": "1998-03",
+        "break_significant": true
+      },
+      "both_significant": false,
+      "same_direction": true,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.127,
+      "break_year_gap": 0
+    },
+    {
+      "region": "US_Arctic_Barrow",
+      "merra_var": "T2M",
+      "era5_var": "T2M",
+      "anomaly_r": 0.958,
+      "n_eff": 410.8,
+      "merra": {
+        "verdict": "sig_increase",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.2270830435713563,
+        "break_date": "2002-02",
+        "break_significant": true
+      },
+      "era5": {
+        "verdict": "sig_increase",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.2780129076191321,
+        "break_date": "2002-02",
+        "break_significant": true
+      },
+      "both_significant": true,
+      "same_direction": true,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.051,
+      "break_year_gap": 0
+    },
+    {
+      "region": "US_Arctic_Barrow",
+      "merra_var": "GWETROOT",
+      "era5_var": "SM_ROOT",
+      "anomaly_r": 0.624,
+      "n_eff": 34.7,
+      "merra": {
+        "verdict": "autocorr_rejected",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.1942252320601888,
+        "break_date": "2013-07",
+        "break_significant": true
+      },
+      "era5": {
+        "verdict": "autocorr_rejected",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.17107603006339758,
+        "break_date": "2013-06",
+        "break_significant": true
+      },
+      "both_significant": false,
+      "same_direction": true,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.023,
+      "break_year_gap": 0
+    },
+    {
+      "region": "US_Arctic_Barrow",
+      "merra_var": "GWETTOP",
+      "era5_var": "SM_TOP",
+      "anomaly_r": 0.594,
+      "n_eff": 99.8,
+      "merra": {
+        "verdict": "autocorr_rejected",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.15362163634460677,
+        "break_date": "2013-07",
+        "break_significant": true
+      },
+      "era5": {
+        "verdict": "not_significant",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.1245502536289904,
+        "break_date": "2012-08",
+        "break_significant": true
+      },
+      "both_significant": false,
+      "same_direction": true,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.029,
+      "break_year_gap": 1
+    },
+    {
+      "region": "ES_Med_Almeria",
+      "merra_var": "T2M",
+      "era5_var": "T2M",
+      "anomaly_r": 0.954,
+      "n_eff": 410.6,
+      "merra": {
+        "verdict": "sig_increase",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.26216357233956994,
+        "break_date": "2013-12",
+        "break_significant": true
+      },
+      "era5": {
+        "verdict": "sig_increase",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.30518592736897804,
+        "break_date": "2011-03",
+        "break_significant": true
+      },
+      "both_significant": true,
+      "same_direction": true,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.043,
+      "break_year_gap": 2
+    },
+    {
+      "region": "ES_Med_Almeria",
+      "merra_var": "GWETROOT",
+      "era5_var": "SM_ROOT",
+      "anomaly_r": 0.702,
+      "n_eff": 153.5,
+      "merra": {
+        "verdict": "not_significant",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.0026222948235828185,
+        "break_date": "1985-10",
+        "break_significant": false
+      },
+      "era5": {
+        "verdict": "not_significant",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.009714004755513725,
+        "break_date": "1992-10",
+        "break_significant": false
+      },
+      "both_significant": false,
+      "same_direction": false,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.012,
+      "break_year_gap": 7
+    },
+    {
+      "region": "ES_Med_Almeria",
+      "merra_var": "GWETTOP",
+      "era5_var": "SM_TOP",
+      "anomaly_r": 0.59,
+      "n_eff": 368.3,
+      "merra": {
+        "verdict": "not_significant",
+        "direction": "increase",
+        "slope_sd_per_decade": 0.03460582896569671,
+        "break_date": "1985-10",
+        "break_significant": false
+      },
+      "era5": {
+        "verdict": "not_significant",
+        "direction": "decrease",
+        "slope_sd_per_decade": -0.03762683185806753,
+        "break_date": "2011-07",
+        "break_significant": false
+      },
+      "both_significant": false,
+      "same_direction": false,
+      "verdict_conflict": false,
+      "slope_gap_sd": 0.072,
+      "break_year_gap": 26
+    }
+  ]
+}
