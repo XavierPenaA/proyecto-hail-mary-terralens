@@ -10,6 +10,7 @@ script (scripts/refresh_satellite_caches.py), which uses the fetch_* functions b
 import json
 import os
 import ssl
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -56,11 +57,16 @@ class UpstreamDataError(RuntimeError):
 def _http_get(url: str, body: Optional[bytes] = None, headers: Optional[Dict[str, str]] = None,
               timeout: int = HTTP_TIMEOUT_S) -> str:
     request = urllib.request.Request(url, data=body, headers={"User-Agent": USER_AGENT, **(headers or {})})
-    try:
-        with urllib.request.urlopen(request, context=SSL_CONTEXT, timeout=timeout) as response:
-            return response.read().decode("utf-8")
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        raise UpstreamDataError(f"Request to {urllib.parse.urlsplit(url).netloc} failed: {exc}") from exc
+    for attempt in range(2):
+        try:
+            with urllib.request.urlopen(request, context=SSL_CONTEXT, timeout=timeout) as response:
+                return response.read().decode("utf-8")
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            if attempt == 0:
+                time.sleep(1.0)
+                continue
+            raise UpstreamDataError(f"Request to {urllib.parse.urlsplit(url).netloc} failed: {exc}") from exc
+    raise UpstreamDataError(f"Request to {urllib.parse.urlsplit(url).netloc} failed.")
 
 
 def _http_get_json(url: str, body: Optional[Dict[str, Any]] = None, timeout: int = HTTP_TIMEOUT_S) -> Dict[str, Any]:
@@ -160,9 +166,14 @@ def load_region_nasa_power(region_id: str) -> Tuple[pd.DataFrame, Dict[str, Any]
 
 def _prune_live_cache() -> None:
     """Keeps only the LIVE_CACHE_MAX_FILES most recently written probe files."""
+    if not os.path.exists(LIVE_CACHE_DIR):
+        return
     files = [os.path.join(LIVE_CACHE_DIR, name) for name in os.listdir(LIVE_CACHE_DIR) if name.endswith(".json")]
     for path in sorted(files, key=os.path.getmtime, reverse=True)[LIVE_CACHE_MAX_FILES:]:
-        os.remove(path)
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
 
 def fetch_live_nasa_power(lat: float, lon: float) -> Tuple[pd.DataFrame, Dict[str, Any]]:

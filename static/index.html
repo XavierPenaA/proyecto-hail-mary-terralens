@@ -405,13 +405,13 @@
               <div class="table-wrap" tabindex="0">
                 <table class="data-table">
                   <thead>
-                    <tr>
-                      <th data-i18n="col.month">Month</th>
-                      <th class="num" data-i18n="col.score">Ranking score</th>
-                      <th class="num" data-i18n="col.votes">Detectors</th>
-                      <th class="num expert-only" data-i18n="col.mahalanobis">Mahalanobis D</th>
-                      <th class="num" data-i18n="col.oniValue">ONI</th>
-                      <th data-i18n="col.event">What was unusual</th>
+                    <tr id="mlAnomaliesTableHead">
+                      <th data-i18n="col.month" data-sort="date" style="cursor:pointer;" title="Sort">Month</th>
+                      <th class="num" data-i18n="col.score" data-sort="consensus_score_pct" style="cursor:pointer;" title="Sort">Ranking score</th>
+                      <th class="num" data-i18n="col.votes" data-sort="model_votes" style="cursor:pointer;" title="Sort">Detectors</th>
+                      <th class="num expert-only" data-i18n="col.mahalanobis" data-sort="mahalanobis_dist" style="cursor:pointer;" title="Sort">Mahalanobis D</th>
+                      <th class="num" data-i18n="col.oniValue" data-sort="oni" style="cursor:pointer;" title="Sort">ONI</th>
+                      <th data-i18n="col.event" data-sort="event_code" style="cursor:pointer;" title="Sort">What was unusual</th>
                     </tr>
                   </thead>
                   <tbody id="mlAnomaliesTableBody"></tbody>
@@ -631,6 +631,17 @@
                 </div>
               </div>
               <div class="chart-box-sm"><canvas id="cubePermChart" role="img"></canvas></div>
+              <div class="table-wrap" style="max-height:175px;margin-top:10px;">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th data-i18n="col.topDriver">Main input</th>
+                      <th class="num" data-i18n="telemetry.perm.axis">Drop in test R²</th>
+                    </tr>
+                  </thead>
+                  <tbody id="nowcastPermBody"></tbody>
+                </table>
+              </div>
             </div>
             <div class="panel col-12" id="forecastPanel">
               <div class="panel-header">

@@ -28,6 +28,8 @@ BOOTSTRAP_SAMPLES = 999
 BOOTSTRAP_SEED = 2009
 # Kass & Raftery (1995): a BIC difference above 10 is "very strong" evidence for one model.
 STEP_EVIDENCE_BIC = 10.0
+# Lag-1 persistence above which "Hamed-Rao yes, Santer no" is reported as a memory artefact.
+MEMORY_REJECTION_R1 = 0.5
 MAX_ENSO_LAG_MONTHS = 6
 MIN_MONTHS_EACH_SIDE_OF_BREAK = 24
 # Seasons are labelled by the year of their last month, so DJF 1998 = Dec 1997 + Jan-Feb 1998.
@@ -367,8 +369,11 @@ def known_breakpoint_test(
 def compare_step_vs_trend(t_years: np.ndarray, y: np.ndarray, change_index: int) -> Dict[str, Any]:
     """
     Compares a linear trend (2 parameters) with a single level shift at the Pettitt date
-    (3 parameters: two means and the break) using BIC. preferred_model is 'step' or 'trend'
-    when the BIC difference exceeds STEP_EVIDENCE_BIC, otherwise 'inconclusive'.
+    (3 parameters: two means and the break) using BIC. Because the break location tau was found
+    by searching over n candidate points (Pettitt argmax), a standard Delta BIC > 2 threshold
+    would suffer from post-selection inflation. We require Delta BIC > STEP_EVIDENCE_BIC (10.0),
+    corresponding to Kass & Raftery (1995) 'very strong' evidence, to classify a preference.
+    preferred_model is 'step' or 'trend' when |Delta BIC| exceeds STEP_EVIDENCE_BIC, else 'inconclusive'.
     """
     mask = np.isfinite(t_years) & np.isfinite(y)
     t = np.asarray(t_years, dtype=float)[mask]
@@ -378,12 +383,20 @@ def compare_step_vs_trend(t_years: np.ndarray, y: np.ndarray, change_index: int)
         return {"bic_trend": None, "bic_step": None, "delta_bic": 0.0, "preferred_model": "inconclusive"}
 
     slope, intercept = np.polyfit(t, v, 1)
-    rss_trend = float(np.sum((v - (intercept + slope * t)) ** 2))
+    resid_trend = v - (intercept + slope * t)
     before, after = v[: change_index + 1], v[change_index + 1:]
-    rss_step = float(np.sum((before - before.mean()) ** 2) + np.sum((after - after.mean()) ** 2))
+    resid_step = np.concatenate([before - before.mean(), after - after.mean()])
+    rss_trend, rss_step = float(np.sum(resid_trend ** 2)), float(np.sum(resid_step ** 2))
+
+    # Persistent noise carries less information than n independent points, so the likelihood term
+    # uses n_eff. The persistence is read from the better-fitting model: a real step leaves white
+    # residuals under the step model, whereas pure memory leaves them persistent under both.
+    best_resid = resid_step if rss_step < rss_trend else resid_trend
+    r1 = lag1_autocorrelation(best_resid)
+    n_eff = float(np.clip(n * (1.0 - r1) / (1.0 + r1), 10.0, n)) if r1 > 0.0 else float(n)
 
     def _bic(rss: float, k: int) -> float:
-        return float(n * np.log(max(rss, 1e-12) / n) + k * np.log(n))
+        return float(n_eff * np.log(max(rss, 1e-12) / n) + k * np.log(n_eff))
 
     bic_trend, bic_step = _bic(rss_trend, 2), _bic(rss_step, 3)
     delta = bic_trend - bic_step
@@ -393,7 +406,8 @@ def compare_step_vs_trend(t_years: np.ndarray, y: np.ndarray, change_index: int)
         preferred = "trend"
     else:
         preferred = "inconclusive"
-    return {"bic_trend": bic_trend, "bic_step": bic_step, "delta_bic": float(delta), "preferred_model": preferred}
+    return {"bic_trend": bic_trend, "bic_step": bic_step, "delta_bic": float(delta), "preferred_model": preferred,
+            "n_eff": n_eff}
 
 
 # ---------------------------------------------------------------------------
@@ -468,24 +482,43 @@ def enso_teleconnection(des: pd.DataFrame, oni_df: pd.DataFrame, max_lag: int = 
 def classify_trend_verdict(
     slope_decade: float,
     p_hamed_rao: float,
-    p_annual: float,
     p_santer: float = 0.0,
     lag1_r: float = 0.0,
 ) -> Dict[str, Any]:
     """
-    Verdict code from autocorrelation-corrected p-values. With extreme persistence (r1 > 0.85)
-    a trend must also be confirmed by Santer-corrected OLS or by the annual Mann-Kendall test.
+    Verdict code from two autocorrelation-corrected tests. Monte Carlo calibration
+    (scripts/calibration_study.py) showed Hamed-Rao alone calls 11-28% of trend-free AR(1) series
+    significant when r1 >= 0.5, while Santer-corrected OLS stays near the nominal 5%. A trend is
+    therefore only as significant as the weaker of the two tests (p = max of both).
     Codes: sig_increase, sig_decrease, marginal_increase, marginal_decrease, not_significant,
-    autocorr_rejected.
+    autocorr_rejected (Hamed-Rao alone sees a trend that Santer attributes to memory).
     """
     direction = "increase" if slope_decade > 0 else "decrease"
-    if lag1_r > 0.85 and p_santer > MARGINAL_ALPHA and p_annual > MARGINAL_ALPHA:
+    if lag1_r > MEMORY_REJECTION_R1 and p_hamed_rao < MARGINAL_ALPHA <= p_santer:
         return {"code": "autocorr_rejected", "direction": direction, "is_significant": False}
-    if p_hamed_rao < SIGNIFICANCE_ALPHA:
+    p_effective = max(p_hamed_rao, p_santer)
+    if p_effective < SIGNIFICANCE_ALPHA:
         return {"code": f"sig_{direction}", "direction": direction, "is_significant": True}
-    if p_hamed_rao < MARGINAL_ALPHA:
+    if p_effective < MARGINAL_ALPHA:
         return {"code": f"marginal_{direction}", "direction": direction, "is_significant": False}
     return {"code": "not_significant", "direction": direction, "is_significant": False}
+
+
+def widen_theil_sen_ci(mk: Dict[str, Any], n_eff: float) -> Dict[str, Any]:
+    """
+    The Theil-Sen interval of scipy assumes independent points (it excluded zero in up to 74% of
+    trend-free persistent series). Widening it around the slope by sqrt(n / n_eff) restores the
+    coverage Santer et al. (2000) give OLS.
+    """
+    n = max(float(mk["n"]), 1.0)
+    inflation = float(np.sqrt(n / np.clip(n_eff, 3.0, n)))
+    slope = mk["theil_sen_decade"]
+    return {
+        **mk,
+        "theil_sen_ci_low_decade": slope - (slope - mk["theil_sen_ci_low_decade"]) * inflation,
+        "theil_sen_ci_high_decade": slope + (mk["theil_sen_ci_high_decade"] - slope) * inflation,
+        "theil_sen_ci_inflation": inflation,
+    }
 
 
 def trend_warnings(verdict: Dict[str, Any], homogeneity: Dict[str, Any], known_break: Optional[Dict[str, Any]]) -> List[str]:
@@ -542,7 +575,7 @@ def analyze_single_variable(
     dates_m = des["date"].tolist()
 
     ols_m = ols_with_santer_correction(t_m, a_m)
-    mk_m = mann_kendall_hamed_rao(t_m, a_m)
+    mk_m = widen_theil_sen_ci(mann_kendall_hamed_rao(t_m, a_m), ols_m["n_eff"])
     pettitt_m = pettitt_change_point_test(dates_m, a_m)
     homogeneity = compare_step_vs_trend(t_m, a_m, pettitt_m["change_index"])
     known_break = known_breakpoint_test(dates_m, a_m, known_break_date) if known_break_date else None
@@ -550,10 +583,10 @@ def analyze_single_variable(
     t_y = ann["year"].to_numpy(dtype=float)
     a_y = ann["annual_anomaly"].to_numpy(dtype=float)
     ols_y = ols_with_santer_correction(t_y, a_y)
-    mk_y = mann_kendall_hamed_rao(t_y, a_y)
+    mk_y = widen_theil_sen_ci(mann_kendall_hamed_rao(t_y, a_y), ols_y["n_eff"])
 
     verdict = classify_trend_verdict(
-        mk_m["theil_sen_decade"], mk_m["p_hamed_rao"], mk_y["p_original"],
+        mk_m["theil_sen_decade"], mk_m["p_hamed_rao"],
         p_santer=ols_m["p_santer"], lag1_r=ols_m["lag1_r"],
     )
 

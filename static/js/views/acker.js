@@ -41,8 +41,10 @@ export function renderAcker(d) {
         ],
       },
       options: baseOptions({
+        indexAxis: 'y',
         legend: true,
-        scales: { x: axis({ grid: false }), y: axis({ title: t('acker.axis') }) },
+        interaction: { mode: 'nearest', intersect: true },
+        scales: { x: axis({ title: t('acker.axis') }), y: axis({ grid: false }) },
       }),
     },
     t('aria.acker', { n: exp.n_excluded_months }),

@@ -117,15 +117,73 @@ function renderDriverModel(ml) {
   );
 }
 
-function renderAnomalyTable(ml) {
-  const rows = ml.anomalies.slice(0, 20);
+let currentMlData = null;
+let anomalySortKey = 'consensus_score_pct';
+let anomalySortAsc = false;
+
+function bindAnomalyTableSort() {
+  const head = $('mlAnomaliesTableHead');
+  if (!head || head.$bound) return;
+  head.$bound = true;
+  head.addEventListener('click', (e) => {
+    const th = e.target.closest('th[data-sort]');
+    if (!th || !currentMlData) return;
+    const key = th.dataset.sort;
+    if (anomalySortKey === key) {
+      anomalySortAsc = !anomalySortAsc;
+    } else {
+      anomalySortKey = key;
+      anomalySortAsc = (key === 'date');
+    }
+    renderAnomalyRows(currentMlData);
+  });
+}
+
+function updateSortHeaders() {
+  const head = $('mlAnomaliesTableHead');
+  if (!head) return;
+  head.querySelectorAll('th[data-sort]').forEach((th) => {
+    const key = th.dataset.sort;
+    const arrow = th.querySelector('.sort-arrow') || document.createElement('span');
+    arrow.className = 'sort-arrow';
+    arrow.style.fontSize = '10px';
+    arrow.style.marginLeft = '4px';
+    arrow.style.color = 'var(--text-tertiary)';
+    if (!th.contains(arrow)) th.appendChild(arrow);
+    if (key === anomalySortKey) {
+      arrow.textContent = anomalySortAsc ? '▲' : '▼';
+      arrow.style.color = 'var(--accent)';
+      th.setAttribute('aria-sort', anomalySortAsc ? 'ascending' : 'descending');
+    } else {
+      arrow.textContent = '';
+      th.removeAttribute('aria-sort');
+    }
+  });
+}
+
+function renderAnomalyRows(ml) {
+  currentMlData = ml;
+  updateSortHeaders();
+  const rawRows = ml?.anomalies || [];
   const tbody = $('mlAnomaliesTableBody');
-  if (!rows.length) {
+  if (!rawRows.length) {
     tbody.innerHTML = `<tr><td colspan="6" class="empty-state">${escapeHtml(t('ml.anomalies.none'))}</td></tr>`;
     return;
   }
+
+  const sorted = [...rawRows].sort((a, b) => {
+    let valA = a[anomalySortKey];
+    let valB = b[anomalySortKey];
+    if (valA === null || valA === undefined) valA = anomalySortAsc ? Infinity : -Infinity;
+    if (valB === null || valB === undefined) valB = anomalySortAsc ? Infinity : -Infinity;
+    if (typeof valA === 'string') {
+      return anomalySortAsc ? valA.localeCompare(valB) : valB.localeCompare(valA);
+    }
+    return anomalySortAsc ? valA - valB : valB - valA;
+  });
+
   tbody.replaceChildren(
-    ...rows.map((a) => {
+    ...sorted.map((a) => {
       const top = a.drivers.slice(0, 2).map((dr) => `${variableShort(dr.variable)} ${fmtNum(dr.z_sigma, 1, true)}σ`).join(' · ');
       const phase = a.oni_phase && a.oni_phase !== 'neutral' ? ` · ${oniPhaseLabel(a.oni_phase)}` : '';
       const detectors = Object.entries(a.detectors).filter(([, on]) => on).map(([name]) => t(`detector.${name}`)).join(', ');
@@ -140,6 +198,11 @@ function renderAnomalyTable(ml) {
       return tr;
     }),
   );
+}
+
+function renderAnomalyTable(ml) {
+  bindAnomalyTableSort();
+  renderAnomalyRows(ml);
 }
 
 export function renderMl(d) {

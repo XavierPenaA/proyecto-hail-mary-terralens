@@ -7,6 +7,7 @@ import pytest
 from core.stats_engine import (
     analyze_single_variable,
     benjamini_hochberg_fdr,
+    classify_trend_verdict,
     compare_step_vs_trend,
     compute_climatology_and_seasonal_trends,
     correlation_with_neff,
@@ -15,6 +16,7 @@ from core.stats_engine import (
     mann_kendall_hamed_rao,
     ols_with_santer_correction,
     pettitt_change_point_test,
+    widen_theil_sen_ci,
 )
 
 N_YEARS = 40
@@ -140,3 +142,33 @@ def test_verdict_rejects_a_trend_that_only_memory_creates():
     df = monthly_frame(ar1(12 * N_YEARS, 0.97, rng) * 0.05)
     res = analyze_single_variable(df, "X")
     assert not res["verdict"]["is_significant"]
+
+
+def test_verdict_needs_both_corrected_tests_to_agree():
+    assert classify_trend_verdict(0.1, 0.01, p_santer=0.01, lag1_r=0.3)["code"] == "sig_increase"
+    # Hamed-Rao alone is not enough: the weaker test sets the significance.
+    assert classify_trend_verdict(0.1, 0.01, p_santer=0.07, lag1_r=0.3)["code"] == "marginal_increase"
+    assert classify_trend_verdict(-0.1, 0.01, p_santer=0.30, lag1_r=0.3)["code"] == "not_significant"
+    assert classify_trend_verdict(-0.1, 0.01, p_santer=0.30, lag1_r=0.9)["code"] == "autocorr_rejected"
+
+
+def test_theil_sen_interval_widens_with_persistence():
+    mk = {"n": 540, "theil_sen_decade": 0.2, "theil_sen_ci_low_decade": 0.15, "theil_sen_ci_high_decade": 0.25}
+    same = widen_theil_sen_ci(mk, 540.0)
+    wide = widen_theil_sen_ci(mk, 135.0)
+    assert same["theil_sen_ci_low_decade"] == pytest.approx(0.15)
+    assert wide["theil_sen_ci_inflation"] == pytest.approx(2.0)
+    assert wide["theil_sen_ci_low_decade"] == pytest.approx(0.1)
+    assert wide["theil_sen_ci_high_decade"] == pytest.approx(0.3)
+
+
+def test_step_vs_trend_does_not_see_a_break_in_pure_memory():
+    from core.stats_engine import _pettitt_statistic
+
+    t = 1981 + np.arange(12 * N_YEARS) / 12.0
+    false_steps = 0
+    for seed in range(20):
+        y = ar1(12 * N_YEARS, 0.9, np.random.default_rng(seed))
+        k = int(np.argmax(_pettitt_statistic(y)[0]))
+        false_steps += compare_step_vs_trend(t, y, k)["preferred_model"] == "step"
+    assert false_steps <= 1

@@ -21,7 +21,7 @@ DYNAMIC_FAMILIES = {
     "zone": ["ecuador", "south_america", "global_reference"],
     "season": ["DJF", "MAM", "JJA", "SON"],
     "month": [str(m) for m in range(1, 13)],
-    "feature": ["PREC", "T2M", "RH2M", "SW", "ONI"],
+    "feature": ["PREC", "T2M", "RH2M", "SW", "ONI", "GWET"],
     "detector": ["isolation_forest", "lof", "mahalanobis"],
     "relation.enso": ["opposite", "same_sign", "not_both_significant"],
     "relation.trend": ["opposite", "same_direction", "not_both_significant", "step_qualified"],

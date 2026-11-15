@@ -178,12 +178,26 @@ def _trend_payload(res: Dict[str, Any]) -> Dict[str, Any]:
 
 def _monthly_series(res: Dict[str, Any], variable: str) -> List[Dict[str, Any]]:
     ols, mk = res["monthly_ols"], res["monthly_mk"]
-    des = res["monthly_series"].assign(
+    des = res["monthly_series"]
+    t_mid = float(des["decimal_year"].mean()) if not des.empty else 0.0
+    y_mid = float(mk["theil_sen_intercept"] + mk["theil_sen_yr"] * t_mid)
+    low_slope = float(mk.get("theil_sen_ci_low_decade", 0.0)) / 10.0
+    high_slope = float(mk.get("theil_sen_ci_high_decade", 0.0)) / 10.0
+
+    des = des.assign(
         raw_val=lambda d: d[variable],
         ols_line=lambda d: ols["intercept"] + ols["slope_yr"] * d["decimal_year"],
         ts_line=lambda d: mk["theil_sen_intercept"] + mk["theil_sen_yr"] * d["decimal_year"],
+        ts_ci_low=lambda d: np.minimum(
+            y_mid + low_slope * (d["decimal_year"] - t_mid),
+            y_mid + high_slope * (d["decimal_year"] - t_mid),
+        ),
+        ts_ci_high=lambda d: np.maximum(
+            y_mid + low_slope * (d["decimal_year"] - t_mid),
+            y_mid + high_slope * (d["decimal_year"] - t_mid),
+        ),
     )
-    return _records(des, ["date", "raw_val", "clim_mean", "anomaly", "z_score", "ols_line", "ts_line"])
+    return _records(des, ["date", "raw_val", "clim_mean", "anomaly", "z_score", "ols_line", "ts_line", "ts_ci_low", "ts_ci_high"])
 
 
 def _annual_series(res: Dict[str, Any]) -> List[Dict[str, Any]]:

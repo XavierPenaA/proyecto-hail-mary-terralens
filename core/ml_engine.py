@@ -321,10 +321,11 @@ def _driver_table(work: pd.DataFrame) -> pd.DataFrame:
     ).dropna()
 
 
-def _standardize_driver_fold(work: pd.DataFrame, train_end: int) -> pd.DataFrame:
+def _standardize_driver_fold(work: pd.DataFrame, train_end_date: str) -> pd.DataFrame:
     """Fit monthly normals using only the training months; transform both partitions."""
     raw_columns = [column for column in work.columns if column.startswith("RAW_")]
-    climatology = work.loc[:train_end].groupby("month")[raw_columns]
+    train_mask = work["date"] <= train_end_date
+    climatology = work[train_mask].groupby("month")[raw_columns]
     means, stds = climatology.mean(), climatology.std()
     values = work[raw_columns].to_numpy() - means.reindex(work["month"]).to_numpy()
     scale = stds.reindex(work["month"]).fillna(1.0).clip(lower=1e-8).to_numpy()
@@ -354,9 +355,10 @@ def run_lagged_driver_random_forest(z_df: pd.DataFrame) -> Dict[str, Any]:
 
     cv_model, cv_persistence = [], []
     for train_idx, test_idx in TimeSeriesSplit(n_splits=CV_SPLITS).split(X):
-        train_dates, test_dates = table.index[train_idx], table.index[test_idx]
-        fold = _driver_table(_standardize_driver_fold(work, int(train_dates[-1])))
-        train, test = fold.loc[fold.index.intersection(train_dates)], fold.loc[fold.index.intersection(test_dates)]
+        train_indices, test_indices = table.index[train_idx], table.index[test_idx]
+        train_end_date = str(work.loc[train_indices[-1], "date"])
+        fold = _driver_table(_standardize_driver_fold(work, train_end_date))
+        train, test = fold.loc[fold.index.intersection(train_indices)], fold.loc[fold.index.intersection(test_indices)]
         if min(len(train), len(test)) < 2:
             continue
         model = _forest(100).fit(train[feat_cols].to_numpy(), train["target"].to_numpy())

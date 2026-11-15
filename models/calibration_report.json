@@ -1,0 +1,96 @@
+{
+  "n_months": 540,
+  "reps": 1000,
+  "alpha": 0.05,
+  "type1": {
+    "0.0": {
+      "naive_mk": 0.047,
+      "hamed_rao": 0.042,
+      "santer_ols": 0.044,
+      "verdict": 0.033,
+      "ts_ci_raw_excludes_0": 0.047,
+      "ts_ci_widened_excludes_0": 0.043,
+      "santer_ci_excludes_0": 0.044
+    },
+    "0.5": {
+      "naive_mk": 0.247,
+      "hamed_rao": 0.113,
+      "santer_ols": 0.047,
+      "verdict": 0.045,
+      "ts_ci_raw_excludes_0": 0.247,
+      "ts_ci_widened_excludes_0": 0.045,
+      "santer_ci_excludes_0": 0.047
+    },
+    "0.7": {
+      "naive_mk": 0.421,
+      "hamed_rao": 0.177,
+      "santer_ols": 0.053,
+      "verdict": 0.051,
+      "ts_ci_raw_excludes_0": 0.421,
+      "ts_ci_widened_excludes_0": 0.05,
+      "santer_ci_excludes_0": 0.053
+    },
+    "0.85": {
+      "naive_mk": 0.577,
+      "hamed_rao": 0.226,
+      "santer_ols": 0.055,
+      "verdict": 0.054,
+      "ts_ci_raw_excludes_0": 0.577,
+      "ts_ci_widened_excludes_0": 0.062,
+      "santer_ci_excludes_0": 0.055
+    },
+    "0.95": {
+      "naive_mk": 0.739,
+      "hamed_rao": 0.299,
+      "santer_ols": 0.056,
+      "verdict": 0.056,
+      "ts_ci_raw_excludes_0": 0.739,
+      "ts_ci_widened_excludes_0": 0.07,
+      "santer_ci_excludes_0": 0.056
+    }
+  },
+  "power": {
+    "0.1": {
+      "hamed_rao": 0.437,
+      "santer_ols": 0.239,
+      "verdict": 0.238
+    },
+    "0.2": {
+      "hamed_rao": 0.848,
+      "santer_ols": 0.693,
+      "verdict": 0.685
+    },
+    "0.4": {
+      "hamed_rao": 0.999,
+      "santer_ols": 0.999,
+      "verdict": 0.999
+    }
+  },
+  "step_preference": {
+    "0.0": {
+      "false_step": 0.0,
+      "step_detected_1.0sigma": 0.95,
+      "step_detected_2.0sigma": 1.0
+    },
+    "0.5": {
+      "false_step": 0.002,
+      "step_detected_1.0sigma": 0.384,
+      "step_detected_2.0sigma": 0.986
+    },
+    "0.7": {
+      "false_step": 0.001,
+      "step_detected_1.0sigma": 0.084,
+      "step_detected_2.0sigma": 0.821
+    },
+    "0.85": {
+      "false_step": 0.0,
+      "step_detected_1.0sigma": 0.018,
+      "step_detected_2.0sigma": 0.364
+    },
+    "0.95": {
+      "false_step": 0.0,
+      "step_detected_1.0sigma": 0.007,
+      "step_detected_2.0sigma": 0.071
+    }
+  }
+}

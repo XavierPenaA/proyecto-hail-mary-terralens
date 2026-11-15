@@ -74,7 +74,9 @@ export function renderSummary(d) {
   // Trend
   $('kpiSlope').textContent = fmtNum(d.monthly_mk.theil_sen_decade, 3, true);
   $('kpiSlopeUnits').textContent = decadeUnits(code);
-  $('kpiOlsCompare').textContent = `OLS ${fmtNum(d.monthly_ols.slope_decade, 3, true)}`;
+  const ciLow = fmtNum(d.monthly_mk.theil_sen_ci_low_decade, 3, true);
+  const ciHigh = fmtNum(d.monthly_mk.theil_sen_ci_high_decade, 3, true);
+  $('kpiOlsCompare').textContent = `OLS ${fmtNum(d.monthly_ols.slope_decade, 3, true)} · 95% CI [${ciLow}, ${ciHigh}]`;
   $('kpiWindowMeta').textContent = t('kpi.window', { from: d.year_start, to: d.year_end, n: d.n_months });
 
   // Memory and significance

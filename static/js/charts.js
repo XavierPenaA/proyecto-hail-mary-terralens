@@ -170,6 +170,7 @@ export function renderChart(canvasId, config, ariaLabel) {
       easing: 'easeOutQuart',
       delay: (ctx) => (ctx.type === 'data' && ctx.mode === 'default' ? ctx.dataIndex * 38 : 0),
     };
+    (options.animations ||= {}).colors = false;
   }
 
   const chart = new window.Chart(canvas.getContext('2d'), config);

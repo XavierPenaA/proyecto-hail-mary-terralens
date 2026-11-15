@@ -1,8 +1,8 @@
 /** Model performance view, drawn from the offline benchmark manifest (train_models.py). */
-import { axis, barGradient, baseOptions, renderChart } from '../charts.js';
+import { axis, baseOptions, renderChart } from '../charts.js';
 import { escapeHtml, fmtNum } from '../format.js';
 import { t } from '../i18n.js';
-import { regionName } from '../labels.js';
+import { featureLabel, regionName } from '../labels.js';
 import { chartColors } from '../theme.js';
 
 const $ = (id) => document.getElementById(id);
@@ -53,14 +53,15 @@ export function renderTelemetry(manifest) {
     }),
   );
 
+  const c = chartColors();
   const perms = nowcast.permutation_importance.slice(0, 8);
   renderChart(
     'cubePermChart',
     {
       type: 'bar',
       data: {
-        labels: perms.map((p) => p.feature),
-        datasets: [{ label: t('telemetry.perm.axis'), data: perms.map((p) => p.importance_mean), backgroundColor: barGradient(chartColors().trend, 1, 0.3), borderRadius: 6, borderSkipped: false }],
+        labels: perms.map((p) => featureLabel(p.feature)),
+        datasets: [{ label: t('telemetry.perm.axis'), data: perms.map((p) => p.importance_mean), backgroundColor: c.trend, borderRadius: 5, borderSkipped: false }],
       },
       options: baseOptions({
         indexAxis: 'y',
@@ -68,8 +69,21 @@ export function renderTelemetry(manifest) {
         scales: { x: axis({ title: t('telemetry.perm.axis'), beginAtZero: true }), y: axis({ grid: false }) },
       }),
     },
-    t('aria.perm', { feature: perms[0]?.feature }),
+    t('aria.perm', { feature: featureLabel(perms[0]?.feature) }),
   );
+
+  const permBody = $('nowcastPermBody');
+  if (permBody) {
+    permBody.replaceChildren(
+      ...nowcast.permutation_importance.map((p) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td style="color:var(--text-primary);font-weight:600;">${escapeHtml(featureLabel(p.feature))}</td>
+          <td class="num tabular">${fmtNum(p.importance_mean, 4)}</td>`;
+        return tr;
+      }),
+    );
+  }
 
   $('forecastBody').replaceChildren(
     ...manifest.forecast_benchmarks.flatMap((bench) =>

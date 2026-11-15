@@ -24,13 +24,15 @@ function renderMonthlyChart(d) {
       data: {
         labels: series.map((r) => r.date),
         datasets: [
-          { label: t('legend.anomaly'), data: series.map((r) => r.anomaly), borderColor: c.anomaly, backgroundColor: areaGradient(c.anomaly, 0.22), fill: 'origin', borderWidth: 1.2, pointRadius: 0, tension: 0, order: 4, glow: false },
+          { label: t('legend.anomaly'), data: series.map((r) => r.anomaly), borderColor: c.anomaly, backgroundColor: areaGradient(c.anomaly, 0.22), fill: 'origin', borderWidth: 1.2, pointRadius: 0, tension: 0, order: 5, glow: false },
           { label: t('legend.theilSen'), data: series.map((r) => r.ts_line), borderColor: c.trend, borderWidth: 2.2, pointRadius: 0, order: 1 },
-          { label: t('legend.ols'), data: series.map((r) => r.ols_line), borderColor: c.ols, borderWidth: 1.6, borderDash: [5, 4], pointRadius: 0, order: 2 },
+          { label: '95% CI (low)', data: series.map((r) => r.ts_ci_low), borderColor: 'transparent', pointRadius: 0, fill: false, order: 2 },
+          { label: t('legend.theilSenCi'), data: series.map((r) => r.ts_ci_high), borderColor: 'transparent', backgroundColor: 'rgba(230, 81, 0, 0.12)', fill: '-1', pointRadius: 0, order: 2 },
+          { label: t('legend.ols'), data: series.map((r) => r.ols_line), borderColor: c.ols, borderWidth: 1.6, borderDash: [5, 4], pointRadius: 0, order: 3 },
           {
             label: `${t('legend.pettitt')} (${pet.change_date})`,
             data: series.map((r) => (r.date <= pet.change_date ? pet.mean_before : pet.mean_after)),
-            borderColor: c.step, borderWidth: 1.6, stepped: true, pointRadius: 0, order: 3,
+            borderColor: c.step, borderWidth: 1.6, stepped: true, pointRadius: 0, order: 4,
           },
           {
             label: t('legend.mlExtreme'),
@@ -40,6 +42,9 @@ function renderMonthlyChart(d) {
         ],
       },
       options: baseOptions({
+        tooltip: {
+          filter: (item) => item.dataset.label !== '95% CI (low)',
+        },
         scales: {
           x: axis({ grid: false, ticks: { maxTicksLimit: 10 } }),
           y: axis({ title: `${t('axis.anomaly')} (${units(code)})` }),

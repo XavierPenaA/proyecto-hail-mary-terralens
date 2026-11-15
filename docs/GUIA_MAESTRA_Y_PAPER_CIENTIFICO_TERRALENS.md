@@ -94,13 +94,15 @@ $$S = \sum_{i<j} \operatorname{sgn}(x_j - x_i), \qquad \operatorname{Var}^*(S) =
 
 Solo se suman los rezagos con autocorrelación significativa de los rangos de la serie sin tendencia. La pendiente de Theil-Sen es la mediana de todas las pendientes entre pares.
 
-**Veredicto.** Si r₁ > 0,85, la tendencia debe confirmarse también con Santer o con la prueba anual (p < 0,10); si no, el código es `autocorr_rejected`. Después: p de Hamed-Rao < 0,05 → significativa; entre 0,05 y 0,10 → débil; si no → sin tendencia.
+**Veredicto.** Una tendencia vale lo que la más débil de las dos pruebas corregidas: p = máx(Hamed-Rao, Santer). p < 0,05 → significativa; entre 0,05 y 0,10 → débil; si no → sin tendencia. Si Hamed-Rao ve una tendencia (p < 0,10), Santer no, y r₁ > 0,5, el código es `autocorr_rejected` (la memoria explica la pendiente). Esta regla sale de la calibración Monte Carlo de la sección 4.8: Hamed-Rao solo declaraba significativas entre 11 % y 28 % de las series sin tendencia cuando r₁ ≥ 0,5.
+
+**Intervalo de la pendiente.** El intervalo de Theil-Sen de SciPy supone puntos independientes (excluía el cero hasta en el 74 % de las series sin tendencia). Se ensancha alrededor de la pendiente por √(N/n_eff), con n_eff de Santer.
 
 ### 4.4 Pettitt (1979) con bootstrap por bloques
 Pettitt ubica el mes con el mayor cambio de nivel (estadístico K). La fórmula asintótica del p-valor supone meses independientes y produce valores absurdos con series persistentes (p = 7,9 × 10⁻⁴⁵ en Napo). TerraLens calcula el p-valor con un **bootstrap circular por bloques**: remuestrea bloques de longitud (1 + r₁)/(1 − r₁) —el cociente N/n_eff de Santer— para conservar la memoria, 999 veces con semilla fija. El mínimo posible es p = 0,001.
 
 ### 4.5 ¿Salto o tendencia?
-Pettitt no distingue un escalón de una tendencia gradual. Se comparan con BIC un modelo lineal (2 parámetros) y un modelo de dos medias separadas en la fecha de Pettitt (3 parámetros). Si la diferencia supera 10 (evidencia "muy fuerte" según Kass y Raftery, 1995), se prefiere ese modelo; si no, el resultado es "no concluyente". Una tendencia significativa que se explica mejor como un salto recibe la advertencia `step_dominated`.
+Pettitt no distingue un escalón de una tendencia gradual. Se comparan con BIC un modelo lineal (2 parámetros) y un modelo de dos medias separadas en la fecha de Pettitt (3 parámetros). El BIC usa el tamaño efectivo n_eff (con la persistencia de los residuos del modelo que mejor ajusta) en lugar de N, porque con memoria alta N puntos aportan mucha menos información. Si la diferencia supera 10 (evidencia "muy fuerte" según Kass y Raftery, 1995), se prefiere ese modelo; si no, el resultado es "no concluyente". Con N en vez de n_eff, el BIC declaraba "salto" en el 72 % de las series sin salto con r₁ = 0,85. Una tendencia significativa que se explica mejor como un salto recibe la advertencia `step_dominated`.
 
 Además:
 - **Empalme documentado:** para la irradiancia solar se prueba directamente la diferencia de medias en 2001-01, con el mismo bootstrap.
@@ -112,6 +114,19 @@ Se correlaciona la anomalía con el ONI adelantado 0 a 6 meses. El p-valor usa e
 ### 4.7 Benjamini-Hochberg (1995)
 $$q_{(i)} = \min_{k \ge i} \frac{m}{k}\, p_{(k)}$$
 Se aplica a las seis variables de una región y a las 96 celdas del mapa (significancia de campo, Wilks 2016).
+
+### 4.8 Calibración Monte Carlo
+`scripts/calibration_study.py` ejecuta las funciones de la app sobre 1000 series sintéticas de 540 meses por escenario (ruido AR(1) con φ de 0 a 0,95; resultados en `models/calibration_report.json`). Falsos positivos sin tendencia, nivel nominal 5 %:
+
+| φ | Mann-Kendall clásico | Hamed-Rao | Santer | Veredicto actual |
+| :--- | :--- | :--- | :--- | :--- |
+| 0,0 | 4,7 % | 4,2 % | 4,4 % | 3,3 % |
+| 0,5 | 24,7 % | 11,3 % | 4,7 % | 4,5 % |
+| 0,7 | 42,1 % | 17,7 % | 5,3 % | 5,1 % |
+| 0,85 | 57,7 % | 22,6 % | 5,5 % | 5,4 % |
+| 0,95 | 73,9 % | 29,9 % | 5,6 % | 5,6 % |
+
+El costo es potencia: con φ = 0,7, una tendencia de 0,2σ por década se detecta el 69 % de las veces (Hamed-Rao solo: 85 %), y con 0,4σ el 99,9 %. El BIC con n_eff casi no genera saltos falsos (≤ 0,2 %) pero también detecta menos saltos reales cuando hay mucha memoria: un salto de 2σ se encuentra en el 82 % de los casos con φ = 0,7 y en el 7 % con φ = 0,95. Con la regla corregida, 11 de las 66 series región × variable (casi todas de humedad del suelo, r₁ ≈ 0,83–0,94) pasaron de significativas a `autocorr_rejected` o débiles.
 
 ---
 

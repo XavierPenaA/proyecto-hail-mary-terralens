@@ -41,7 +41,7 @@ The suite checks the statistics on synthetic series with known answers, the API 
 | --- | --- | --- |
 | Deseasonalize | Monthly anomalies, annual means, seasonal subsets (DJF uses the previous December) | Acker et al. (2009) |
 | Trend size | Theil-Sen slope | Sen (1968) |
-| Trend significance | Modified Mann-Kendall with autocorrelation correction; OLS with lag-1 effective sample size; annual-mean test as a second check | Hamed & Rao (1998); Santer et al. (2000) |
+| Trend significance | Modified Mann-Kendall and Santer-corrected OLS must both agree (p = max of the two; false-positive rate calibrated by Monte Carlo, see `scripts/calibration_study.py`) | Hamed & Rao (1998); Santer et al. (2000) |
 | Change points | Pettitt location with a circular block-bootstrap p-value | Pettitt (1979) |
 | Step or trend? | BIC comparison of one level shift versus a linear trend; direct test of documented source changes (solar, January 2001); warning when several variables shift within two months | Kass & Raftery (1995) |
 | Many tests | Benjamini-Hochberg q-values across the six variables and across the 96 map cells | Benjamini & Hochberg (1995); Wilks (2016) |

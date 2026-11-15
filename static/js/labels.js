@@ -55,8 +55,13 @@ export const zoneLabel = (code) => t(`zone.${code}`);
 export const seasonLabel = (code) => t(`season.${code}`);
 export const monthLabel = (month) => t(`month.${month}`);
 
-/** Runtime driver codes look like SOURCE_lagK (e.g. PREC_lag1, ONI_lag3). */
+/** Runtime driver codes look like SOURCE_lagK (e.g. PREC_lag1, ONI_lag3) or SOURCE_z. */
 export function featureLabel(code) {
+  if (code.endsWith('_z')) {
+    const source = code.slice(0, -2);
+    const name = t(`feature.${source}`);
+    return t('feature.now', { name });
+  }
   const match = /^([A-Z0-9]+)_lag(\d+)$/.exec(code);
   if (!match) return code;
   const [, source, lag] = match;
