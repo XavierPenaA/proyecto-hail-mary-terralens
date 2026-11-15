@@ -25,4 +25,7 @@ deliverables/build_30s_video.py
 deliverables/capture_and_build_all.py
 deliverables/assets/motion_kf_*.png
 
+# Internal team & submission notes
+docs/
+
 .agents/
