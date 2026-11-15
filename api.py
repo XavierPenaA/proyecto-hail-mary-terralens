@@ -6,6 +6,7 @@ memoized in core.analysis_service; the guided-case findings are warmed up at sta
 """
 
 import json
+import mimetypes
 import os
 import threading
 import time
@@ -360,4 +361,5 @@ def live_coordinate_probe(
     }
 
 
+mimetypes.add_type("font/woff2", ".woff2")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

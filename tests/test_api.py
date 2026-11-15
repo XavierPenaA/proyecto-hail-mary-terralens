@@ -18,6 +18,11 @@ def test_index_and_static_assets_are_served(client):
     assert client.get("/").status_code == 200
     for path in ("/static/js/main.js", "/static/css/app.css", "/static/i18n/es.json", "/static/vendor/chart.umd.js"):
         assert client.get(path).status_code == 200, path
+    for name in ("instrument-sans", "instrument-sans-extended", "ibm-plex-mono-regular", "ibm-plex-mono-semibold"):
+        font = client.get(f"/static/fonts/{name}.woff2")
+        assert font.status_code == 200, name
+        assert font.headers["content-type"] == "font/woff2", name
+        assert font.content.startswith(b"wOF2"), name
 
 
 def test_catalog_lists_regions_variables_and_computed_cases(client):

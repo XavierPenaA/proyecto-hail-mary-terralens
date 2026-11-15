@@ -29,7 +29,8 @@ TerraLens's own code, documentation and visuals are licensed under the **Apache 
 | Chart.js 4.4.1 | Charts (vendored in `static/vendor/`) | MIT | https://www.chartjs.org/ |
 | Leaflet 1.9.4 | Map (vendored in `static/vendor/leaflet/`) | BSD-2-Clause | https://leafletjs.com/ |
 | Esri World Light/Dark Gray Canvas basemaps | Map tiles (loaded online) | Esri terms of use; attribution "Esri, HERE, Garmin, © OpenStreetMap contributors" shown on the map | https://www.esri.com/en-us/legal/terms/full-master-agreement |
-| Plus Jakarta Sans, JetBrains Mono | Typography (Google Fonts) | SIL Open Font License 1.1 | https://fonts.google.com/ |
+| Instrument Sans, IBM Plex Mono | Observatory typefaces, served locally | SIL Open Font License 1.1 ([Instrument Sans](static/fonts/OFL-Instrument-Sans.txt), [IBM Plex Mono](static/fonts/OFL-IBM-Plex-Mono.txt)) | https://fonts.google.com/specimen/Instrument+Sans · https://fonts.google.com/specimen/IBM+Plex+Mono |
+| Plus Jakarta Sans, JetBrains Mono | HTML pitch typefaces (Google Fonts) | SIL Open Font License 1.1 | https://fonts.google.com/ |
 
 ## 3. Methods cited
 

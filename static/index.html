@@ -19,10 +19,7 @@
     })();
   </script>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet"
-    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+  <link rel="preload" href="/static/fonts/instrument-sans.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="/static/vendor/leaflet/leaflet.css" />
   <link rel="stylesheet" href="/static/css/app.css" />
   <script src="/static/vendor/leaflet/leaflet.js" defer></script>
@@ -37,11 +34,14 @@
     <!-- ================================================================ SIDEBAR -->
     <aside class="sidebar" id="sidebar" aria-label="Main navigation" data-i18n-aria-label="a11y.mainNav">
       <div class="brand-block">
-        <img src="/static/favicon.svg" alt="" style="width:32px;height:32px;border-radius:8px;flex-shrink:0;" />
+        <img class="brand-mark" src="/static/favicon.svg" alt="" />
         <div>
           <div class="brand-title">TerraLens <span class="nav-tag">v2.2</span></div>
           <div class="brand-sub" data-i18n="brand.sub">Earth System Trend Detective</div>
         </div>
+        <button class="icon-btn mobile-only drawer-close" id="btnDrawerClose" data-i18n-aria-label="alert.close" aria-label="Close">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+        </button>
       </div>
 
       <div>
@@ -99,10 +99,10 @@
         </div>
       </div>
 
-      <div>
-        <div class="nav-group-label" data-i18n="nav.cases">Guided cases</div>
+      <details class="case-list-group" id="caseListGroup">
+        <summary class="nav-group-label"><span data-i18n="nav.cases">Guided cases</span></summary>
         <div class="nav-list" id="caseList"></div>
-      </div>
+      </details>
 
       <div class="sidebar-footer">
         <div class="sidebar-footer-row">
@@ -117,23 +117,47 @@
           <span data-i18n="sidebar.persistence">Persistence baseline</span>
           <span class="tabular" id="sbPersistence">—</span>
         </div>
-        <div class="sidebar-footer-row" style="font-size:11.5px;color:var(--text-tertiary);padding-top:3px;border-top:1px solid var(--border-subtle);">
+        <div class="sidebar-footer-row sidebar-sources">
           <span>NASA POWER · MODIS · NOAA ONI</span>
         </div>
       </div>
     </aside>
-    <div class="drawer-backdrop" id="drawerBackdrop"></div>
+    <div class="drawer-backdrop" id="drawerBackdrop" aria-hidden="true"></div>
 
     <!-- ================================================================ MAIN -->
-    <main class="main-area">
-      <header class="command-bar">
-        <div class="toolbar-group">
+    <main class="main-area" id="mainArea">
+      <header class="view-bar">
+        <div class="view-bar-inner">
           <button class="icon-btn mobile-only" id="btnMenu" aria-controls="sidebar" aria-expanded="false" data-i18n-aria-label="a11y.menu" aria-label="Open menu">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
           </button>
-          <div class="cmd-field">
-            <label class="cmd-field-label" for="regionSelect" data-i18n="ctrl.region">Region</label>
-            <div class="cmd-field-row"><select id="regionSelect" class="ctrl-select"></select></div>
+          <h1 class="view-title" id="currentViewTitle"></h1>
+          <div class="utility-group">
+            <button id="btnExpert" class="util-btn" aria-pressed="false" data-i18n-title="ctrl.expert.help" title="Show every statistical column">
+              <span data-i18n="ctrl.expert">Expert mode</span>
+            </button>
+            <button id="btnLang" class="util-btn" data-i18n-title="ctrl.lang.help" title="Switch language">
+              <span id="langLabel">ES</span>
+            </button>
+            <button id="btnTheme" class="util-btn" data-i18n-title="ctrl.theme.help" title="Switch light or dark theme">
+              <span id="themeLabel">Light</span>
+            </button>
+            <button id="btnExportCsv" class="util-btn" data-i18n-title="ctrl.csv.help" title="Download the monthly series as CSV">
+              <span>CSV</span>
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <div class="workspace-scroll" id="workspace" tabindex="-1">
+        <div class="view-guide-banner" id="viewGuideBanner">
+          <div id="viewGuideText"></div>
+        </div>
+        <div class="command-bar">
+          <div class="series-controls">
+            <div class="cmd-field">
+              <label class="cmd-field-label" for="regionSelect" data-i18n="ctrl.region">Region</label>
+              <div class="cmd-field-row"><select id="regionSelect" class="ctrl-select"></select></div>
           </div>
           <div class="cmd-field">
             <label class="cmd-field-label" for="variableSelect" data-i18n="ctrl.variable">Variable</label>
@@ -143,16 +167,16 @@
             <span class="cmd-field-label" id="lblWindow" data-i18n="ctrl.window">Period</span>
             <div class="cmd-field-row" role="group" aria-labelledby="lblWindow">
               <select id="startYearInput" class="year-select" data-i18n-aria-label="ctrl.startYear" aria-label="Start year"></select>
-              <span style="color:var(--text-tertiary);font-size:11px;" aria-hidden="true">→</span>
+              <span class="period-arrow" aria-hidden="true">→</span>
               <select id="endYearInput" class="year-select" data-i18n-aria-label="ctrl.endYear" aria-label="End year"></select>
             </div>
           </div>
-        </div>
+          </div>
 
-        <div class="toolbar-group">
-          <div id="loadingIndicator" role="status" aria-live="polite">
-            <span class="spinner" aria-hidden="true"></span>
-            <span data-i18n="status.computing">Computing…</span>
+          <div class="analysis-controls">
+            <div id="loadingIndicator" role="status" aria-live="polite">
+              <span class="spinner" aria-hidden="true"></span>
+              <span data-i18n="status.computing">Computing…</span>
           </div>
 
           <button id="btnCeresGuard" class="cmd-switch" role="switch" aria-checked="true"
@@ -172,25 +196,9 @@
               <span class="switch-sub" id="subExcludeExtremes"></span>
             </span>
           </button>
-
-          <div class="utility-group">
-            <button id="btnExpert" class="util-btn" aria-pressed="false" data-i18n-title="ctrl.expert.help" title="Show every statistical column">
-              <span data-i18n="ctrl.expert">Expert mode</span>
-            </button>
-            <button id="btnLang" class="util-btn" data-i18n-title="ctrl.lang.help" title="Switch language">
-              <span id="langLabel">ES</span>
-            </button>
-            <button id="btnTheme" class="util-btn" data-i18n-title="ctrl.theme.help" title="Switch light or dark theme">
-              <span id="themeLabel">Light</span>
-            </button>
-            <button id="btnExportCsv" class="util-btn" data-i18n-title="ctrl.csv.help" title="Download the monthly series as CSV">
-              <span>CSV</span>
-            </button>
           </div>
         </div>
-      </header>
 
-      <div class="workspace-scroll" id="workspace" tabindex="-1">
         <div class="app-alert" id="appAlert" role="alert" hidden>
           <span id="appAlertText"></span>
           <span class="app-alert-actions">
@@ -199,31 +207,14 @@
           </span>
         </div>
 
-        <div class="view-guide-banner" id="viewGuideBanner">
-          <div id="viewGuideText"></div>
-        </div>
-
         <!-- Guided case walkthrough -->
         <section class="case-panel" id="casePanel" hidden aria-labelledby="caseTitle">
-          <div class="case-panel-head">
-            <div>
-              <div class="answer-kicker" id="caseKicker"></div>
-              <h2 class="case-panel-title" id="caseTitle"></h2>
-              <div class="case-question" id="caseQuestion"></div>
-            </div>
-            <button class="icon-btn" id="btnCaseClose" data-i18n-aria-label="case.close" aria-label="Close case">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-            </button>
+          <div>
+            <div class="answer-kicker" id="caseKicker"></div>
+            <h2 class="case-panel-title" id="caseTitle"></h2>
+            <div class="case-question" id="caseQuestion"></div>
           </div>
           <div class="case-finding" id="caseFinding"></div>
-          <div class="case-step">
-            <div class="case-step-text" id="caseStepText" aria-live="polite"></div>
-            <div class="case-step-nav">
-              <button class="btn" id="btnCasePrev" data-i18n="case.prev">Back</button>
-              <span class="tabular" id="caseStepCounter" style="font-size:12px;color:var(--text-tertiary);"></span>
-              <button class="btn btn-primary" id="btnCaseNext" data-i18n="case.next">Next</button>
-            </div>
-          </div>
         </section>
 
         <!-- Plain-language answer and key metrics (only on views about the selected series) -->
@@ -280,42 +271,52 @@
         <!-- ================================================================ VIEW: TRENDS -->
         <div id="tab-trends" class="workspace-view" role="tabpanel" aria-labelledby="nav-tab-trends">
           <div class="grid-12">
-            <div class="panel col-8" id="monthlyChartPanel">
-              <div class="panel-header" style="flex-wrap:wrap;gap:10px;">
+            <div class="panel col-12" id="monthlyChartPanel">
+              <div class="panel-header chart-panel-header">
                 <div style="flex:1 1 260px;min-width:0;">
                   <h3 class="panel-title" id="mainChartTitle"></h3>
                   <div class="panel-subtitle" data-i18n="trends.monthly.subtitle">Monthly anomalies (value minus that month's normal) with two trend lines and the largest level shift</div>
                 </div>
                 <div class="chart-legend">
-                  <span class="legend-item"><span class="legend-swatch" style="background:var(--series-anomaly);"></span><span data-i18n="legend.anomaly">Monthly anomaly</span></span>
-                  <span class="legend-item"><span class="legend-swatch" style="background:var(--series-trend);"></span><span data-i18n="legend.theilSen">Theil-Sen trend</span></span>
-                  <span class="legend-item"><span class="legend-swatch" style="background:var(--series-ols);"></span><span data-i18n="legend.ols">OLS trend</span></span>
-                  <span class="legend-item"><span class="legend-swatch" style="background:var(--series-step);"></span><span data-i18n="legend.pettitt">Pettitt step</span></span>
-                  <span class="legend-item"><span class="dot" style="background:var(--series-alert);"></span><span data-i18n="legend.mlExtreme">Anomalous month</span></span>
+                  <span class="legend-item"><span class="legend-swatch"></span><span data-i18n="legend.anomaly">Monthly anomaly</span></span>
+                  <span class="legend-item"><span class="legend-swatch legend-trend"></span><span data-i18n="legend.theilSen">Theil-Sen trend</span></span>
+                  <span class="legend-item"><span class="legend-swatch legend-ols"></span><span data-i18n="legend.ols">OLS trend</span></span>
+                  <span class="legend-item"><span class="legend-swatch legend-step"></span><span data-i18n="legend.pettitt">Pettitt step</span></span>
+                  <span class="legend-item"><span class="dot legend-extreme"></span><span data-i18n="legend.mlExtreme">Anomalous month</span></span>
                 </div>
               </div>
               <div class="chart-box"><canvas id="monthlyTrendChart" role="img"></canvas></div>
             </div>
 
-            <div class="panel col-4" id="annualChartPanel">
+            <div class="panel col-6" id="annualChartPanel">
               <div class="panel-header">
                 <div>
                   <h3 class="panel-title" data-i18n="trends.annual.title">Annual means</h3>
                   <div class="panel-subtitle" data-i18n="trends.annual.subtitle">Averaging each year removes most month-to-month memory</div>
                 </div>
               </div>
-              <div class="chart-box"><canvas id="annualTrendChart" role="img"></canvas></div>
+              <div class="chart-box-sm"><canvas id="annualTrendChart" role="img"></canvas></div>
+            </div>
+
+            <div class="panel col-6" id="climPanel">
+              <div class="panel-header">
+                <div>
+                  <h3 class="panel-title" data-i18n="trends.clim.title">Normal year (mean ± 1σ per month)</h3>
+                  <div class="panel-subtitle" data-i18n="trends.clim.subtitle">The seasonal cycle removed before looking for trends</div>
+                </div>
+              </div>
+              <div class="chart-box-sm"><canvas id="climatologyChart" role="img"></canvas></div>
             </div>
 
             <div class="panel col-12" id="fdrPanel">
-              <div class="panel-header" style="flex-wrap:wrap;gap:10px;">
+              <div class="panel-header">
                 <div style="flex:1 1 260px;min-width:0;">
                   <h3 class="panel-title" data-i18n="trends.scan.title">All six variables at once</h3>
                   <div class="panel-subtitle" data-i18n="trends.scan.subtitle">Testing six variables raises the chance of a false alarm, so q-values control the false discovery rate. Click a row to open that variable.</div>
                 </div>
               </div>
               <div class="panel-note warn" id="coincidentNote" hidden></div>
-              <div class="table-wrap">
+              <div class="table-wrap" tabindex="0">
                 <table class="data-table" id="fdrTable">
                   <thead>
                     <tr>
@@ -338,24 +339,14 @@
               </div>
             </div>
 
-            <div class="panel col-6" id="climPanel">
-              <div class="panel-header">
-                <div>
-                  <h3 class="panel-title" data-i18n="trends.clim.title">Normal year (mean ± 1σ per month)</h3>
-                  <div class="panel-subtitle" data-i18n="trends.clim.subtitle">The seasonal cycle removed before looking for trends</div>
-                </div>
-              </div>
-              <div class="chart-box-sm" style="height:210px;"><canvas id="climatologyChart" role="img"></canvas></div>
-            </div>
-
-            <div class="panel col-6" id="seasPanel">
+            <div class="panel col-12" id="seasPanel">
               <div class="panel-header">
                 <div>
                   <h3 class="panel-title" data-i18n="trends.seasonal.title">Trend by season</h3>
                   <div class="panel-subtitle" data-i18n="trends.seasonal.subtitle">Which season drives the change (December counts with the following January–February)</div>
                 </div>
               </div>
-              <div class="table-wrap">
+              <div class="table-wrap" tabindex="0">
                 <table class="data-table">
                   <thead>
                     <tr>
@@ -388,7 +379,7 @@
             </div>
 
             <div class="panel col-7" id="rfPanel">
-              <div class="panel-header" style="flex-wrap:wrap;gap:10px;">
+              <div class="panel-header">
                 <div style="flex:1 1 260px;min-width:0;">
                   <h3 class="panel-title" data-i18n="ml.rf.title">What explains root-zone soil moisture?</h3>
                   <div class="panel-subtitle" data-i18n="ml.rf.subtitle">Random Forest on this month's and earlier rainfall, temperature, humidity, radiation and ENSO</div>
@@ -406,7 +397,7 @@
                   <div class="panel-subtitle" data-i18n="ml.anomalies.subtitle">Isolation Forest, Local Outlier Factor and Mahalanobis distance, each with its own data-driven threshold</div>
                 </div>
               </div>
-              <div class="table-wrap">
+              <div class="table-wrap" tabindex="0">
                 <table class="data-table">
                   <thead>
                     <tr>
@@ -444,7 +435,7 @@
                   <div class="panel-subtitle" id="ackerSubtitle"></div>
                 </div>
               </div>
-              <div class="table-wrap">
+              <div class="table-wrap" tabindex="0">
                 <table class="data-table">
                   <thead>
                     <tr>
@@ -466,19 +457,25 @@
 
         <!-- ================================================================ VIEW: DIPOLE -->
         <div id="tab-dipole" class="workspace-view" role="tabpanel" aria-labelledby="nav-tab-dipole">
-          <div class="panel" style="gap:12px;">
-            <div class="panel-header" style="flex-wrap:wrap;gap:12px;">
+          <div class="panel">
+            <div class="panel-header">
               <div style="flex:1 1 260px;min-width:0;">
                 <h3 class="panel-title" data-i18n="dipole.title">Compare two regions</h3>
                 <div class="panel-subtitle" data-i18n="dipole.subtitle">Standardized anomalies of both regions next to the ENSO index. Correlations use an effective sample size that accounts for month-to-month memory.</div>
               </div>
-              <div class="inline-controls">
-                <label for="dipoleRegionA" data-i18n="dipole.regionA">Region A</label>
-                <select id="dipoleRegionA" class="ctrl-select"></select>
-                <label for="dipoleRegionB" data-i18n="dipole.regionB">Region B</label>
-                <select id="dipoleRegionB" class="ctrl-select"></select>
-                <label for="dipoleVariable" data-i18n="ctrl.variable">Variable</label>
-                <select id="dipoleVariable" class="ctrl-select"></select>
+              <div class="inline-controls control-grid">
+                <div class="inline-field">
+                  <label for="dipoleRegionA" data-i18n="dipole.regionA">Region A</label>
+                  <select id="dipoleRegionA" class="ctrl-select"></select>
+                </div>
+                <div class="inline-field">
+                  <label for="dipoleRegionB" data-i18n="dipole.regionB">Region B</label>
+                  <select id="dipoleRegionB" class="ctrl-select"></select>
+                </div>
+                <div class="inline-field">
+                  <label for="dipoleVariable" data-i18n="ctrl.variable">Variable</label>
+                  <select id="dipoleVariable" class="ctrl-select"></select>
+                </div>
               </div>
             </div>
             <div class="kpi-grid" id="dipoleSummaryStrip"></div>
@@ -492,17 +489,21 @@
         <div id="tab-multiscale" class="workspace-view" role="tabpanel" aria-labelledby="nav-tab-multiscale">
           <div class="grid-12">
             <div class="panel col-12" id="mapPanel">
-              <div class="panel-header" style="flex-wrap:wrap;gap:10px;">
+              <div class="panel-header">
                 <div style="flex:1 1 260px;min-width:0;">
                   <h3 class="panel-title" data-i18n="map.title">Trend map over Ecuador (NASA POWER grid, ~55 km cells)</h3>
                   <div class="panel-subtitle" data-i18n="map.subtitle">Solid cells stay significant after controlling the false discovery rate across all cells. Pins are the benchmark regions.</div>
                 </div>
-                <div class="inline-controls">
-                  <label for="gridVarSelect" data-i18n="map.layer">Map layer</label>
-                  <select id="gridVarSelect" class="ctrl-select"></select>
-                  <button class="ghost-toggle active" id="btnZoomEcuador" data-i18n="map.zoomEcuador">Ecuador</button>
-                  <button class="ghost-toggle" id="btnZoomGlobal" data-i18n="map.zoomGlobal">All regions</button>
-                  <button class="ghost-toggle" id="btnProbeMode" aria-pressed="false" data-i18n="map.probeMode">Probe mode</button>
+                <div class="inline-controls map-controls">
+                  <div class="inline-field">
+                    <label for="gridVarSelect" data-i18n="map.layer">Map layer</label>
+                    <select id="gridVarSelect" class="ctrl-select"></select>
+                  </div>
+                  <div class="inline-controls">
+                    <button class="ghost-toggle active" id="btnZoomEcuador" data-i18n="map.zoomEcuador">Ecuador</button>
+                    <button class="ghost-toggle" id="btnZoomGlobal" data-i18n="map.zoomGlobal">All regions</button>
+                    <button class="ghost-toggle" id="btnProbeMode" aria-pressed="false" data-i18n="map.probeMode">Probe mode</button>
+                  </div>
                 </div>
               </div>
               <div id="ecuadorMap" role="application" data-i18n-aria-label="map.aria" aria-label="Trend map"></div>
@@ -528,17 +529,21 @@
                 </div>
               </div>
               <form class="inline-controls" id="probeForm">
-                <label for="probeLat" data-i18n="probe.lat">Lat</label>
-                <input id="probeLat" type="number" step="0.01" min="-90" max="90" value="-2.90" class="ctrl-input tabular" style="width:80px;" required />
-                <label for="probeLon" data-i18n="probe.lon">Lon</label>
-                <input id="probeLon" type="number" step="0.01" min="-180" max="180" value="-79.00" class="ctrl-input tabular" style="width:86px;" required />
+                <div class="inline-field">
+                  <label for="probeLat" data-i18n="probe.lat">Lat</label>
+                  <input id="probeLat" type="number" step="0.01" min="-90" max="90" value="-2.90" class="ctrl-input tabular" required />
+                </div>
+                <div class="inline-field">
+                  <label for="probeLon" data-i18n="probe.lon">Lon</label>
+                  <input id="probeLon" type="number" step="0.01" min="-180" max="180" value="-79.00" class="ctrl-input tabular" required />
+                </div>
                 <button type="submit" class="btn btn-primary" id="btnRunProbe" data-i18n="probe.run">Run</button>
               </form>
               <div class="panel-note" id="liveProbeResult" aria-live="polite" data-i18n="probe.idle">Enter coordinates or turn on probe mode and click the map.</div>
             </div>
 
             <div class="panel col-7" id="meteomaticsPanel">
-              <div class="panel-header" style="flex-wrap:wrap;gap:10px;">
+              <div class="panel-header">
                 <div style="flex:1 1 260px;min-width:0;">
                   <h3 class="panel-title" data-i18n="mm.title">1 km model snapshots (Meteomatics, 2023–2024)</h3>
                   <div class="panel-subtitle" data-i18n="mm.subtitle">One day every 10 days from a commercial downscaled model; not observations and not monthly means</div>
@@ -564,7 +569,7 @@
                   <div class="panel-subtitle" data-i18n="stac.subtitle">Granules of the modis-13Q1-061 collection that contain the point (Microsoft Planetary Computer STAC)</div>
                 </div>
               </div>
-              <div class="table-wrap">
+              <div class="table-wrap" tabindex="0">
                 <table class="data-table">
                   <thead>
                     <tr>
@@ -588,14 +593,14 @@
               <div class="panel-note" data-i18n="telemetry.intro">These benchmarks come from train_models.py, run offline. Every model is compared with persistence: predicting that next month repeats this month's anomaly. A model is only useful where it beats that baseline.</div>
             </div>
             <div class="panel col-7" id="nowcastPanel">
-              <div class="panel-header" style="flex-wrap:wrap;gap:10px;">
+              <div class="panel-header">
                 <div style="flex:1 1 260px;min-width:0;">
                   <h3 class="panel-title" data-i18n="telemetry.nowcast.title">Nowcast over the Ecuador grid</h3>
                   <div class="panel-subtitle" data-i18n="telemetry.nowcast.subtitle">Uses same-month weather, so it explains the present rather than predicting the future</div>
                 </div>
                 <span class="tabular" id="cvTrainedStamp" style="font-size:12px;color:var(--text-tertiary);"></span>
               </div>
-              <div class="table-wrap">
+              <div class="table-wrap" tabindex="0">
                 <table class="data-table">
                   <thead>
                     <tr>
@@ -627,7 +632,7 @@
                   <div class="panel-subtitle" data-i18n="telemetry.forecast.subtitle">Predicting soil moisture 1 and 3 months ahead</div>
                 </div>
               </div>
-              <div class="table-wrap">
+              <div class="table-wrap" tabindex="0">
                 <table class="data-table">
                   <thead>
                     <tr>
@@ -649,7 +654,7 @@
                   <div class="panel-subtitle" data-i18n="telemetry.regional.subtitle">The model behind "What explains root-zone soil moisture?", per region. Negative R² means worse than predicting the average.</div>
                 </div>
               </div>
-              <div class="table-wrap">
+              <div class="table-wrap" tabindex="0">
                 <table class="data-table">
                   <thead>
                     <tr>
@@ -819,6 +824,19 @@
                 </ul>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+      <div class="case-dock" id="caseDock" hidden>
+        <div class="case-dock-inner">
+          <div class="case-step-text" id="caseStepText" aria-live="polite"></div>
+          <div class="case-step-nav">
+            <button class="btn" id="btnCasePrev" data-i18n="case.prev">Back</button>
+            <span class="tabular" id="caseStepCounter"></span>
+            <button class="btn btn-primary" id="btnCaseNext" data-i18n="case.next">Next</button>
+            <button class="icon-btn" id="btnCaseClose" data-i18n-aria-label="case.close" aria-label="Close case">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+            </button>
           </div>
         </div>
       </div>

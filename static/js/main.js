@@ -8,7 +8,7 @@ import { applyStaticTranslations, getLang, initialLanguage, loadLocales, setLang
 import { regionName, units, variableShort, zoneLabel } from './labels.js';
 import { readUrlState, setExpert, state, writeUrlState } from './state.js';
 import { applyChartDefaults, isLight, onThemeChange, setTheme } from './theme.js';
-import { clearError, fillSelect, highlight, initAlert, initDrawer, initTabs, setSwitch, showError, showView, withLoading } from './ui.js';
+import { clearError, closeDrawer, fillSelect, highlight, initAlert, initDrawer, initTabs, setSwitch, showError, showView, withLoading } from './ui.js';
 import { renderAcker } from './views/acker.js';
 import { renderCaseList, renderCasePanel } from './views/cases.js';
 import { loadDipole } from './views/dipole.js';
@@ -199,6 +199,8 @@ function applyCaseSetup(setup) {
 }
 
 async function activateCase(caseId) {
+  closeDrawer($('workspace'));
+  if ($('caseList').contains(document.activeElement)) $('workspace').focus({ preventScroll: true });
   Object.assign(state, { caseId, caseStep: 0 });
   applyCaseSetup(caseById(caseId).setup);
   syncControls();
@@ -208,6 +210,10 @@ async function activateCase(caseId) {
 }
 
 function closeCase() {
+  const focus = document.activeElement;
+  if ($('caseDock').contains(focus) || $('casePanel').contains(focus)) {
+    $('workspace').focus({ preventScroll: true });
+  }
   state.caseId = null;
   state.caseStep = 0;
   renderCases();
@@ -336,7 +342,10 @@ async function init() {
   populateControls();
   syncControls();
   wireEvents();
-  initTabs(selectView);
+  initTabs((view) => {
+    $('workspace').scrollTop = 0;
+    selectView(view);
+  });
   renderCases();
   renderSidebarBenchmark(state.manifest);
   showView(state.view);

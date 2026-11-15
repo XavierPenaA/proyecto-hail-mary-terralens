@@ -6,6 +6,7 @@ import { regionName, variableShort } from '../labels.js';
 const $ = (id) => document.getElementById(id);
 
 export function renderCaseList(cases, activeId, onSelect) {
+  if (activeId) $('caseListGroup').open = true;
   $('caseList').replaceChildren(
     ...cases.map((c) => {
       const btn = document.createElement('button');
@@ -23,6 +24,7 @@ export function renderCaseList(cases, activeId, onSelect) {
 export function renderCasePanel(caseObj, stepIndex) {
   const panel = $('casePanel');
   panel.hidden = !caseObj;
+  $('caseDock').hidden = !caseObj;
   if (!caseObj) return;
   const step = caseObj.steps[stepIndex];
   $('caseKicker').textContent = t('case.kicker', { n: caseObj.number });

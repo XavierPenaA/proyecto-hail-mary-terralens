@@ -65,7 +65,7 @@ export function initTabs(onSelect) {
       event.preventDefault();
       const target = all[(moves[event.key] + all.length) % all.length];
       target.focus();
-      onSelect(target.dataset.tab);
+      if (!document.body.classList.contains('drawer-open')) onSelect(target.dataset.tab);
     });
   });
 }
@@ -76,27 +76,42 @@ export function showView(view) {
     btn.classList.toggle('active', active);
     btn.setAttribute('aria-selected', String(active));
     btn.tabIndex = active ? 0 : -1;
+    if (active) $('currentViewTitle').textContent = btn.querySelector('[data-i18n]').textContent;
   });
   document.querySelectorAll('.workspace-view').forEach((panel) => panel.classList.toggle('active', panel.id === view));
   $('summarySection').hidden = !SUMMARY_VIEWS.includes(view);
   $('viewGuideText').textContent = t(`viewGuide.${view}`);
-  closeDrawer();
+  closeDrawer($('workspace'));
 }
 
 // ---------------------------------------------------------------------------- Drawer (small screens)
 export function initDrawer() {
+  const mobileLayout = window.matchMedia('(max-width: 960px)');
   $('btnMenu').addEventListener('click', () => {
-    const open = !document.body.classList.contains('drawer-open');
-    document.body.classList.toggle('drawer-open', open);
-    $('btnMenu').setAttribute('aria-expanded', String(open));
+    setDrawer(true);
+    (document.querySelector('.nav-btn.active') ?? $('btnDrawerClose')).focus();
   });
-  $('drawerBackdrop').addEventListener('click', closeDrawer);
-  document.addEventListener('keydown', (event) => event.key === 'Escape' && closeDrawer());
+  ['btnDrawerClose', 'drawerBackdrop'].forEach((id) => {
+    $(id).addEventListener('click', () => closeDrawer());
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeDrawer();
+  });
+  mobileLayout.addEventListener('change', (event) => {
+    if (!event.matches) closeDrawer(document.querySelector('.nav-btn.active'));
+  });
 }
 
-function closeDrawer() {
-  document.body.classList.remove('drawer-open');
-  $('btnMenu')?.setAttribute('aria-expanded', 'false');
+function setDrawer(open) {
+  document.body.classList.toggle('drawer-open', open);
+  $('btnMenu').setAttribute('aria-expanded', String(open));
+  $('mainArea').inert = open;
+}
+
+export function closeDrawer(focusTarget = $('btnMenu')) {
+  if (!document.body.classList.contains('drawer-open')) return;
+  setDrawer(false);
+  focusTarget?.focus({ preventScroll: true });
 }
 
 // ---------------------------------------------------------------------------- Helpers
@@ -110,12 +125,15 @@ export function fillSelect(select, options, value) {
   if (value !== undefined) select.value = String(value);
 }
 
+let highlightTimer;
+
 export function highlight(elementId) {
   const el = $(elementId);
   if (!el) return;
+  clearTimeout(highlightTimer);
+  document.querySelector('.case-highlight')?.classList.remove('case-highlight');
   el.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'center' });
-  el.classList.remove('case-highlight');
   void el.offsetWidth; // restart the animation
   el.classList.add('case-highlight');
-  setTimeout(() => el.classList.remove('case-highlight'), 2200);
+  highlightTimer = setTimeout(() => el.classList.remove('case-highlight'), 2200);
 }
