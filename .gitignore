@@ -20,7 +20,9 @@ Thumbs.db
 data/cache/live/
 models/*.joblib
 
-# Keyframe previews written by deliverables/build_30s_video.py
+# Deliverable generator scripts & keyframe previews
+deliverables/build_30s_video.py
+deliverables/capture_and_build_all.py
 deliverables/assets/motion_kf_*.png
 
 .agents/
