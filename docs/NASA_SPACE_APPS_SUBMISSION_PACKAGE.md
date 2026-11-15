@@ -18,8 +18,7 @@ A straight line fitted to a satellite or reanalysis series can report a trend th
 * 30-second video or 7-slide deck, in English, publicly accessible without login.
 
 ### 4. Link to final project
-* **Live demo:** add the public URL here before submitting.
-* **Repository (Apache 2.0):** `https://github.com/XavierPenaA/proyecto-hail-mary-terralens`
+* **Repository & Open Source App (Apache 2.0):** `https://github.com/XavierPenaA/proyecto-hail-mary-terralens` *(if you deploy a live web URL on Azure/GCP/Render/etc., paste that public URL here too)*
 * **Team (Proyecto Hail Mary · Ecuador):** Xavier Sebastián Peña Avilés (team owner), Bryam Astudillo, Juan Jose Coronel Crespo, David Sebastián Célleri Bojorque.
 
 ### 5. Detailed description
