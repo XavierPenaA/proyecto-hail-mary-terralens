@@ -48,5 +48,8 @@ export function applyChartDefaults() {
   window.Chart.defaults.borderColor = c.grid;
   window.Chart.defaults.font.family = token('--font-sans');
   window.Chart.defaults.font.size = 12;
-  window.Chart.defaults.animation = prefersReducedMotion() ? false : { duration: 300 };
+  window.Chart.defaults.animation = prefersReducedMotion() ? false : { duration: 900, easing: 'easeOutQuart' };
+  window.Chart.defaults.elements.point.hoverRadius = 5;
+  window.Chart.defaults.elements.line.borderCapStyle = 'round';
+  window.Chart.defaults.elements.line.borderJoinStyle = 'round';
 }

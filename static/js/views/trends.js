@@ -1,5 +1,5 @@
 /** Long-term trends view: monthly and annual series, climatology, six-variable scan, seasons. */
-import { axis, baseOptions, renderChart } from '../charts.js';
+import { areaGradient, axis, baseOptions, renderChart } from '../charts.js';
 import { escapeHtml, fmtNum, fmtP, pText } from '../format.js';
 import { t } from '../i18n.js';
 import {
@@ -24,7 +24,7 @@ function renderMonthlyChart(d) {
       data: {
         labels: series.map((r) => r.date),
         datasets: [
-          { label: t('legend.anomaly'), data: series.map((r) => r.anomaly), borderColor: c.anomaly, borderWidth: 1.2, pointRadius: 0, tension: 0, order: 4 },
+          { label: t('legend.anomaly'), data: series.map((r) => r.anomaly), borderColor: c.anomaly, backgroundColor: areaGradient(c.anomaly, 0.22), fill: 'origin', borderWidth: 1.2, pointRadius: 0, tension: 0, order: 4, glow: false },
           { label: t('legend.theilSen'), data: series.map((r) => r.ts_line), borderColor: c.trend, borderWidth: 2.2, pointRadius: 0, order: 1 },
           { label: t('legend.ols'), data: series.map((r) => r.ols_line), borderColor: c.ols, borderWidth: 1.6, borderDash: [5, 4], pointRadius: 0, order: 2 },
           {
@@ -63,7 +63,7 @@ function renderAnnualChart(d) {
       data: {
         labels: d.annual_series.map((r) => r.year),
         datasets: [
-          { label: t('legend.annual'), data: d.annual_series.map((r) => r.annual_anomaly), borderColor: c.anomaly, borderWidth: 1.6, pointRadius: 2, tension: 0 },
+          { label: t('legend.annual'), data: d.annual_series.map((r) => r.annual_anomaly), borderColor: c.anomaly, backgroundColor: areaGradient(c.anomaly, 0.3), fill: 'origin', borderWidth: 1.6, pointRadius: 2.5, pointBackgroundColor: c.anomaly, tension: 0.15, glow: false },
           { label: t('legend.theilSen'), data: d.annual_series.map((r) => r.ts_line), borderColor: c.trend, borderWidth: 2, pointRadius: 0 },
         ],
       },
@@ -86,7 +86,7 @@ function renderClimatology(d) {
       data: {
         labels: clim.map((m) => monthLabel(m.month)),
         datasets: [
-          { label: t('legend.normal'), data: clim.map((m) => m.clim_mean), borderColor: c.anomaly, borderWidth: 2, pointRadius: 3, tension: 0.3 },
+          { label: t('legend.normal'), data: clim.map((m) => m.clim_mean), borderColor: c.anomaly, backgroundColor: areaGradient(c.anomaly, 0.24), fill: 'origin', borderWidth: 2, pointRadius: 3, pointBackgroundColor: c.anomaly, tension: 0.35 },
           { label: '+1σ', data: band(1), borderColor: c.muted, borderWidth: 1, borderDash: [4, 3], pointRadius: 0, tension: 0.3 },
           { label: '−1σ', data: band(-1), borderColor: c.muted, borderWidth: 1, borderDash: [4, 3], pointRadius: 0, tension: 0.3 },
         ],

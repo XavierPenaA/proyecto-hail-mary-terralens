@@ -43,11 +43,16 @@ function renderSparkline(values, label) {
     svg.replaceChildren();
     return;
   }
-  const w = 140, h = 40, pad = 3;
+  const w = 140, h = 40, pad = 4;
   const min = Math.min(...values), max = Math.max(...values), span = max - min || 1;
   const pts = values.map((v, i) => `${(pad + (i / (values.length - 1)) * (w - 2 * pad)).toFixed(1)},${(h - pad - ((v - min) / span) * (h - 2 * pad)).toFixed(1)}`);
-  const color = token('--series-anomaly');
-  svg.innerHTML = `<polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />`;
+  const color = token('--accent');
+  const last = pts[pts.length - 1].split(',');
+  svg.innerHTML = `
+    <defs><linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity="0.32" /><stop offset="1" stop-color="${color}" stop-opacity="0" /></linearGradient></defs>
+    <polygon class="spark-area" points="${pad},${h} ${pts.join(' ')} ${w - pad},${h}" fill="url(#sparkFill)" />
+    <polyline class="spark-line" pathLength="1" points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+    <circle class="spark-dot" cx="${last[0]}" cy="${last[1]}" r="3.2" fill="${color}" />`;
 }
 
 export function renderSummary(d) {

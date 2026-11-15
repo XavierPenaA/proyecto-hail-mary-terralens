@@ -22,3 +22,5 @@ models/*.joblib
 
 # Keyframe previews written by deliverables/build_30s_video.py
 deliverables/assets/motion_kf_*.png
+
+.agents/

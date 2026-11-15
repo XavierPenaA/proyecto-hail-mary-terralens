@@ -1,5 +1,5 @@
 /** Model performance view, drawn from the offline benchmark manifest (train_models.py). */
-import { axis, baseOptions, renderChart } from '../charts.js';
+import { axis, barGradient, baseOptions, renderChart } from '../charts.js';
 import { escapeHtml, fmtNum } from '../format.js';
 import { t } from '../i18n.js';
 import { regionName } from '../labels.js';
@@ -60,7 +60,7 @@ export function renderTelemetry(manifest) {
       type: 'bar',
       data: {
         labels: perms.map((p) => p.feature),
-        datasets: [{ label: t('telemetry.perm.axis'), data: perms.map((p) => p.importance_mean), backgroundColor: chartColors().trend, borderRadius: 3 }],
+        datasets: [{ label: t('telemetry.perm.axis'), data: perms.map((p) => p.importance_mean), backgroundColor: barGradient(chartColors().trend, 1, 0.3), borderRadius: 6, borderSkipped: false }],
       },
       options: baseOptions({
         indexAxis: 'y',
