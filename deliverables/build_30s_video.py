@@ -1,3 +1,4 @@
+import json
 import math
 import os
 import sys
@@ -32,17 +33,45 @@ def bgr(rgb: tuple) -> tuple:
     return (rgb[2], rgb[1], rgb[0])
 
 
+# Preferred fonts per platform (Windows, macOS, Linux); the first file found is used.
+FONT_CANDIDATES = {
+    ("mono", False): [r"C:\Windows\Fonts\consola.ttf", "/System/Library/Fonts/Menlo.ttc",
+                      "/usr/share/fonts/liberation-mono-fonts/LiberationMono-Regular.ttf",
+                      "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"],
+    ("mono", True): [r"C:\Windows\Fonts\consolab.ttf", "/System/Library/Fonts/Menlo.ttc",
+                     "/usr/share/fonts/liberation-mono-fonts/LiberationMono-Bold.ttf",
+                     "/usr/share/fonts/truetype/dejavu/DejaVuSansMono-Bold.ttf"],
+    ("sans", False): [r"C:\Windows\Fonts\segoeui.ttf", r"C:\Windows\Fonts\arial.ttf",
+                      "/System/Library/Fonts/Supplemental/Arial.ttf",
+                      "/usr/share/fonts/liberation-sans-fonts/LiberationSans-Regular.ttf",
+                      "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"],
+    ("sans", True): [r"C:\Windows\Fonts\segoeuib.ttf", r"C:\Windows\Fonts\arialbd.ttf",
+                     "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
+                     "/usr/share/fonts/liberation-sans-fonts/LiberationSans-Bold.ttf",
+                     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"],
+}
+
+
 def load_font(size: int, bold: bool = False, mono: bool = False) -> ImageFont.FreeTypeFont:
-    if mono:
-        paths = [r"C:\Windows\Fonts\consolab.ttf" if bold else r"C:\Windows\Fonts\consola.ttf"]
-    elif bold:
-        paths = [r"C:\Windows\Fonts\segoeuib.ttf", r"C:\Windows\Fonts\arialbd.ttf"]
-    else:
-        paths = [r"C:\Windows\Fonts\segoeui.ttf", r"C:\Windows\Fonts\arial.ttf"]
-    for p in paths:
-        if os.path.exists(p):
-            return ImageFont.truetype(p, size)
+    for path in FONT_CANDIDATES[("mono" if mono else "sans", bold)]:
+        if os.path.exists(path):
+            return ImageFont.truetype(path, size)
     return ImageFont.load_default()
+
+
+def load_benchmark() -> dict:
+    """Nowcast and persistence test R² from the benchmark manifest written by train_models.py."""
+    manifest_path = os.path.join(os.path.dirname(BASE_DIR), "models", "training_manifest.json")
+    with open(manifest_path, "r", encoding="utf-8") as f:
+        nowcast = json.load(f)["nowcast_benchmark"]
+    board = {row["model_name"]: row for row in nowcast["leaderboard"]}
+    return {
+        "nowcast_r2": board[nowcast["best_model"]]["test_r2"],
+        "persistence_r2": board["PersistenceBaseline"]["test_r2"],
+    }
+
+
+BENCHMARK = load_benchmark()
 
 
 def ease_out(t: float) -> float:
@@ -367,7 +396,7 @@ def render_beat4(lt: float, gt: float, c: dict) -> np.ndarray:
 
     # Big Future R2 Hero Metric Strip
     r2_prog = ease_out(max(0.0, (lt - 0.2) / 0.5))
-    r2_val = 0.9191 * r2_prog
+    r2_val = BENCHMARK["nowcast_r2"] * r2_prog
     d.rounded_rectangle([(64, 330), (W - 64, 444)], radius=10, fill=SURFACE_RGB, outline=(36, 52, 78), width=1)
     d.text((94, 354), f"{r2_val:.4f} R²", font=f_big, fill=EMERALD_RGB)
     d.text((430, 358), c["b4_r2_t"], font=f_ct, fill=INK_RGB)
@@ -457,12 +486,12 @@ def build_video(lang: str = "en"):
             "b1_jump": "Salto Sensor 2001 (CERES)",
             "b1_cards": [
                 ("Persistencia (r₁)", "Infla falsos p < 0.05", ROSE_RGB),
-                ("Salto ERBE -> CERES", "Falso quiebre solar", AMBER_RGB),
-                ("Picos El Niño / 55 km", "Ocultan sequía local", ACCENT_RGB),
+                ("Salto GEWEX SRB -> CERES", "Falso quiebre solar", AMBER_RGB),
+                ("Picos El Niño / 55 km", "Inclinan la recta", ACCENT_RGB),
             ],
             "b2_pill": "02 · DATOS ESPACIALES",
             "b2_h1": "45 años de la NASA en tres escalas reales.",
-            "b2_sub": "Del clima global de 55 km al estrés vegetal de 250 m en el suelo.",
+            "b2_sub": "De celdas NASA POWER de ~55 km a vegetación MODIS de 250 m y fotos de modelo a 1 km.",
             "b2_s1": "Observaciones reales NASA 1981–2025",
             "b2_s2": "Nodos globales + malla de 96 celdas",
             "b2_s3": "Series climáticas + teleconexión ENSO",
@@ -474,13 +503,13 @@ def build_video(lang: str = "en"):
             "b3_lm_after": "p = 0.728  (Falso Positivo)",
             "b3_ls": "Descartado al corregir memoria temporal r₁.",
             "b3_rt": "Calentamiento Real Andino",
-            "b3_rs": "Sobrevive tras quitar 5% de extremos ML (p < 0.0001).",
-            "b4_pill": "04 · ML SIN FUGAS",
-            "b4_h1": "Entrenado en el pasado. Probado en el futuro.",
-            "b4_sub": "Partición cronológica estricta sin fugas ni sesgo temporal.",
-            "b4_train": "1981–2018 TRAIN + CV (5 Pliegues)",
-            "b4_r2_t": "Precisión en Futuro Oculto (2019–2024)",
-            "b4_r2_s": "HistGradientBoosting sobre 6,912 meses futuros bloqueados",
+            "b3_rs": "Sobrevive al quitar los meses anómalos (p < 0.0001).",
+            "b4_pill": "04 · ML HONESTO",
+            "b4_h1": "Entrenado en el pasado, probado en años no vistos.",
+            "b4_sub": "Cada modelo se compara con la persistencia: el mes siguiente repite al actual.",
+            "b4_train": "1981–2018 DESARROLLO + CV (5 pliegues)",
+            "b4_r2_t": "R² de test del nowcast (2019–2025)",
+            "b4_r2_s": f"Persistencia sola: {BENCHMARK['persistence_r2']:.3f} · el pronóstico real gana poco",
             "b4_nodes": [
                 ("+0.197 °C/déc", "Calentamiento Andino Paute", EMERALD_RGB),
                 ("+0.209 vs -0.329", "Dipolo ENSO Sudamericano", ACCENT_RGB),
@@ -500,12 +529,12 @@ def build_video(lang: str = "en"):
             "b1_jump": "2001 CERES Sensor Jump",
             "b1_cards": [
                 ("Memory Noise (r₁)", "Inflates false p < 0.05", ROSE_RGB),
-                ("ERBE -> CERES Splice", "Fake solar step-change", AMBER_RGB),
-                ("El Niño & 55 km Blur", "Masks local droughts", ACCENT_RGB),
+                ("GEWEX SRB -> CERES Splice", "Fake solar step-change", AMBER_RGB),
+                ("El Niño & 55 km Blur", "Tilt the trend line", ACCENT_RGB),
             ],
             "b2_pill": "02 · MULTI-SCALE NASA",
             "b2_h1": "45 years of NASA data across three scales.",
-            "b2_sub": "Zooming from 55 km climate grids down to 1 km terrain and 250 m plant health.",
+            "b2_sub": "From ~55 km NASA POWER cells to 250 m MODIS vegetation and 1 km model snapshots.",
             "b2_s1": "Real NASA observations (1981–2025)",
             "b2_s2": "Global biomes + 96 regional grid cells",
             "b2_s3": "Full climate + NOAA ENSO record",
@@ -517,13 +546,13 @@ def build_video(lang: str = "en"):
             "b3_lm_after": "p = 0.728  (False Positive)",
             "b3_ls": "Collapses once autocorrelation r₁ is corrected.",
             "b3_rt": "Andean Structural Warming",
-            "b3_rs": "Persists after removing top 5% ML extremes (p < 0.0001).",
-            "b4_pill": "04 · ZERO-LEAKAGE ML",
-            "b4_h1": "Trained on history. Proven on future years.",
-            "b4_sub": "Strict chronological split with zero future information leakage.",
-            "b4_train": "1981–2018 TRAIN + 5-FOLD CV",
-            "b4_r2_t": "Unseen Future Test Accuracy (2019–2024)",
-            "b4_r2_s": "HistGradientBoosting evaluated on 6,912 locked future months",
+            "b3_rs": "Persists after removing the anomalous months (p < 0.0001).",
+            "b4_pill": "04 · HONEST ML",
+            "b4_h1": "Trained on history, tested on unseen years.",
+            "b4_sub": "Every model is compared with persistence: next month repeats this month.",
+            "b4_train": "1981–2018 DEVELOPMENT + 5-FOLD CV",
+            "b4_r2_t": "Nowcast test R² (2019–2025)",
+            "b4_r2_s": f"Persistence alone: {BENCHMARK['persistence_r2']:.3f} · true forecasts gain little",
             "b4_nodes": [
                 ("+0.197 °C/dec", "Andean Warming (Paute)", EMERALD_RGB),
                 ("+0.209 vs -0.329", "South American ENSO Dipole", ACCENT_RGB),

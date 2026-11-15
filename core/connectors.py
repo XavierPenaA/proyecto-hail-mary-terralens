@@ -1,83 +1,119 @@
 """
-TerraLens v2.1 Real Data Connectors & Verified Cache Manager.
+TerraLens data access.
 
-STRICT ZERO-HALLUCINATION POLICY (Rule #0):
-- Never generates synthetic or random data.
-- Serves empirically verified NASA POWER (MERRA-2 / CERES), NOAA CPC ONI,
-  NASA ORNL DAAC Terra MODIS 250m (MOD13Q1), and Meteomatics 1km downscaled series.
-- Supports live queries for any global coordinate (lat, lon) via NASA POWER REST API.
+Runtime reads only local caches (NASA POWER points and grid, NOAA ONI, MODIS NDVI, Meteomatics,
+Planetary Computer STAC), so the observatory works offline. Network access happens in three
+places: a region whose POWER cache is missing, the live coordinate probe, and the cache refresh
+script (scripts/refresh_satellite_caches.py), which uses the fetch_* functions below.
 """
 
-import os
 import json
+import os
 import ssl
-import base64
+import urllib.error
+import urllib.parse
 import urllib.request
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
 import pandas as pd
 
-from core.catalog import VARIABLES, REGIONS
-from core.stats_engine import mann_kendall_hamed_rao, deseasonalize_acker
+from core.catalog import DATA_END_YEAR, DATA_START_YEAR, REGIONS, VARIABLES
+from core.stats_engine import SIGNIFICANCE_ALPHA, benjamini_hochberg_fdr, deseasonalize_acker, mann_kendall_hamed_rao
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE_DIR = os.path.join(BASE_DIR, "data", "cache")
-os.makedirs(CACHE_DIR, exist_ok=True)
+LIVE_CACHE_DIR = os.path.join(CACHE_DIR, "live")
+LIVE_CACHE_MAX_FILES = 200
+HTTP_TIMEOUT_S = 30
+USER_AGENT = "TerraLens/2.2 (NASA Space Apps Challenge)"
+SSL_CONTEXT = ssl.create_default_context()
 
-SSL_CTX = ssl._create_unverified_context()
+POWER_POINT_URL = "https://power.larc.nasa.gov/api/temporal/monthly/point"
+ONI_URL = "https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt"
+MODIS_API_URL = "https://modis.ornl.gov/rst/api/v1/MOD13Q1"
+STAC_SEARCH_URL = "https://planetarycomputer.microsoft.com/api/stac/v1/search"
+
+MODIS_NDVI_BAND = "250m_16_days_NDVI"
+MODIS_RELIABILITY_BAND = "250m_16_days_pixel_reliability"
+MODIS_GOOD_PIXELS = (0, 1)  # 0 = good data, 1 = marginal data; 2 = snow/ice, 3 = cloudy
+MODIS_DATES_PER_REQUEST = 10
+MODIS_TIMEOUT_S = 120  # the ORNL subset service often takes 30 s or more per call
+
+ONI_SEASON_CENTER_MONTH = {
+    "DJF": 1, "JFM": 2, "FMA": 3, "MAM": 4, "AMJ": 5, "MJJ": 6,
+    "JJA": 7, "JAS": 8, "ASO": 9, "SON": 10, "OND": 11, "NDJ": 12,
+}
 
 
-def _load_dotenv_if_present() -> None:
-    env_path = os.path.join(BASE_DIR, ".env")
-    if os.path.exists(env_path):
-        with open(env_path, "r", encoding="utf-8") as f:
-            for line in f:
-                s = line.strip()
-                if s and not s.startswith("#") and "=" in s:
-                    k, v = s.split("=", 1)
-                    os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+class UpstreamDataError(RuntimeError):
+    """A remote data service failed or returned an unusable payload."""
 
 
-_load_dotenv_if_present()
+# ---------------------------------------------------------------------------
+# HTTP helpers
+# ---------------------------------------------------------------------------
+def _http_get(url: str, body: Optional[bytes] = None, headers: Optional[Dict[str, str]] = None,
+              timeout: int = HTTP_TIMEOUT_S) -> str:
+    request = urllib.request.Request(url, data=body, headers={"User-Agent": USER_AGENT, **(headers or {})})
+    try:
+        with urllib.request.urlopen(request, context=SSL_CONTEXT, timeout=timeout) as response:
+            return response.read().decode("utf-8")
+    except (urllib.error.URLError, TimeoutError, OSError) as exc:
+        raise UpstreamDataError(f"Request to {urllib.parse.urlsplit(url).netloc} failed: {exc}") from exc
 
 
+def _http_get_json(url: str, body: Optional[Dict[str, Any]] = None, timeout: int = HTTP_TIMEOUT_S) -> Dict[str, Any]:
+    payload = json.dumps(body).encode("utf-8") if body is not None else None
+    headers = {"Accept": "application/json"}
+    if payload is not None:
+        headers["Content-Type"] = "application/json"
+    text = _http_get(url, payload, headers, timeout)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise UpstreamDataError(f"Invalid JSON from {urllib.parse.urlsplit(url).netloc}") from exc
+
+
+def _read_json(path: str) -> Any:
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _write_json(path: str, data: Any) -> None:
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(data, f)
+
+
+# ---------------------------------------------------------------------------
+# NASA POWER
+# ---------------------------------------------------------------------------
 def parse_nasa_power_json(raw_json: Dict[str, Any]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
     """
-    Parses a raw NASA POWER monthly point JSON payload into a clean DataFrame
-    with columns: [date, year, month, decimal_year, T2M, PRECTOTCORR, ...].
-    Replaces -999 / -999.0 fill values with NaN.
+    Parses a NASA POWER monthly point payload into [date, year, month, decimal_year, <variables>].
+    Fill values (-999) become NaN and the annual summary (month 13) is dropped.
     """
     param_dict = raw_json.get("properties", {}).get("parameter", {})
     coords = raw_json.get("geometry", {}).get("coordinates", [0.0, 0.0, 0.0])
-    header = raw_json.get("header", {})
-
     meta = {
         "lon": float(coords[0]) if len(coords) > 0 else 0.0,
         "lat": float(coords[1]) if len(coords) > 1 else 0.0,
         "elevation_m": float(coords[2]) if len(coords) > 2 else 0.0,
-        "title": header.get("title", "NASA POWER Climate Data"),
-        "api_version": header.get("api", {}).get("version", "v2"),
+        "api_version": raw_json.get("header", {}).get("api", {}).get("version", "v2"),
+        "sources": raw_json.get("header", {}).get("sources", []),
     }
 
     rows: Dict[str, Dict[str, Any]] = {}
     for var_name, ym_map in param_dict.items():
         for ym_str, val in ym_map.items():
-            if len(ym_str) != 6:
+            if len(ym_str) != 6 or not 1 <= int(ym_str[4:6]) <= 12:
                 continue
-            month_num = int(ym_str[4:6])
-            if month_num < 1 or month_num > 12:
-                # Skip month 13 (annual summary in NASA POWER)
-                continue
-            year_num = int(ym_str[0:4])
-            date_str = f"{year_num:04d}-{month_num:02d}"
+            year, month = int(ym_str[:4]), int(ym_str[4:6])
+            date_str = f"{year:04d}-{month:02d}"
             rec = rows.setdefault(
                 date_str,
-                {
-                    "date": date_str,
-                    "year": year_num,
-                    "month": month_num,
-                    "decimal_year": year_num + (month_num - 0.5) / 12.0,
-                },
+                {"date": date_str, "year": year, "month": month, "decimal_year": year + (month - 0.5) / 12.0},
             )
             fval = float(val)
             rec[var_name] = np.nan if fval <= -900.0 else fval
@@ -88,156 +124,112 @@ def parse_nasa_power_json(raw_json: Dict[str, Any]) -> Tuple[pd.DataFrame, Dict[
     return df, meta
 
 
+def fetch_nasa_power_point(lat: float, lon: float, start_year: int = DATA_START_YEAR,
+                           end_year: int = DATA_END_YEAR) -> Dict[str, Any]:
+    """Raw NASA POWER monthly point payload for every catalog variable."""
+    query = urllib.parse.urlencode({
+        "parameters": ",".join(VARIABLES.keys()),
+        "community": "AG",
+        "longitude": round(float(lon), 3),
+        "latitude": round(float(lat), 3),
+        "start": start_year,
+        "end": end_year,
+        "format": "JSON",
+    })
+    raw = _http_get_json(f"{POWER_POINT_URL}?{query}")
+    if not raw.get("properties", {}).get("parameter"):
+        raise UpstreamDataError("NASA POWER returned no parameters for this coordinate")
+    return raw
+
+
 def load_region_nasa_power(region_id: str) -> Tuple[pd.DataFrame, Dict[str, Any]]:
-    """
-    Loads a pre-cached region from disk or fetches it live from NASA POWER if not yet cached.
-    """
+    """Loads a catalog region from its cache file, downloading and caching it if missing."""
     if region_id not in REGIONS:
         raise ValueError(f"Unknown region_id: {region_id}")
     reg = REGIONS[region_id]
     cache_file = os.path.join(CACHE_DIR, f"{region_id}.json")
-
     if os.path.exists(cache_file):
-        with open(cache_file, "r", encoding="utf-8") as f:
-            raw = json.load(f)
-        df, meta = parse_nasa_power_json(raw)
-        meta["source_mode"] = "Verified Local Cache (NASA POWER MERRA-2/CERES)"
-        meta["region_id"] = region_id
-        meta["region_name"] = reg["name"]
-        return df, meta
-
-    return fetch_live_nasa_power(reg["lat"], reg["lon"], save_as_region=region_id)
-
-
-def fetch_live_nasa_power(
-    lat: float,
-    lon: float,
-    start_year: int = 1981,
-    end_year: int = 2025,
-    save_as_region: Optional[str] = None,
-) -> Tuple[pd.DataFrame, Dict[str, Any]]:
-    """
-    Queries the official NASA POWER Monthly Point API in real time for any (lat, lon) on Earth.
-    """
-    lat_r = round(float(lat), 3)
-    lon_r = round(float(lon), 3)
-    cache_key = save_as_region or f"live_{lat_r}_{lon_r}".replace("-", "m").replace(".", "p")
-    cache_file = os.path.join(CACHE_DIR, f"{cache_key}.json")
-
-    if os.path.exists(cache_file):
-        with open(cache_file, "r", encoding="utf-8") as f:
-            raw = json.load(f)
-        df, meta = parse_nasa_power_json(raw)
-        meta["source_mode"] = "Cached NASA POWER Coordinate Probe"
-        return df, meta
-
-    params = ",".join(VARIABLES.keys())
-    url = (
-        f"https://power.larc.nasa.gov/api/temporal/monthly/point?"
-        f"parameters={params}&community=AG&longitude={lon_r}&latitude={lat_r}"
-        f"&start={start_year}&end={end_year}&format=JSON"
-    )
-    req = urllib.request.Request(url, headers={"User-Agent": "TerraLens-NASA-SpaceApps/2.1"})
-    with urllib.request.urlopen(req, context=SSL_CTX, timeout=30) as r:
-        payload = r.read().decode("utf-8")
-        raw = json.loads(payload)
-
-    with open(cache_file, "w", encoding="utf-8") as f:
-        f.write(payload)
-
+        raw = _read_json(cache_file)
+    else:
+        raw = fetch_nasa_power_point(reg["lat"], reg["lon"])
+        _write_json(cache_file, raw)
     df, meta = parse_nasa_power_json(raw)
-    meta["source_mode"] = "Live NASA POWER API Query (200 OK)"
+    meta.update({"source_mode": "cache", "region_id": region_id})
     return df, meta
 
 
-def load_noaa_oni() -> pd.DataFrame:
-    """
-    Loads the official NOAA Climate Prediction Center Oceanic Niño Index (ONI) series.
-    Maps rolling 3-month seasons (DJF=1, JFM=2, ..., NDJ=12) to calendar year and month.
-    """
-    oni_file = os.path.join(CACHE_DIR, "oni.txt")
-    if not os.path.exists(oni_file):
-        url = "https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt"
-        req = urllib.request.Request(url, headers={"User-Agent": "TerraLens/2.1"})
-        with urllib.request.urlopen(req, context=SSL_CTX, timeout=20) as r:
-            txt = r.read().decode("utf-8")
-        with open(oni_file, "w", encoding="utf-8") as f:
-            f.write(txt)
-    else:
-        with open(oni_file, "r", encoding="utf-8") as f:
-            txt = f.read()
+def _prune_live_cache() -> None:
+    """Keeps only the LIVE_CACHE_MAX_FILES most recently written probe files."""
+    files = [os.path.join(LIVE_CACHE_DIR, name) for name in os.listdir(LIVE_CACHE_DIR) if name.endswith(".json")]
+    for path in sorted(files, key=os.path.getmtime, reverse=True)[LIVE_CACHE_MAX_FILES:]:
+        os.remove(path)
 
-    season_to_month = {
-        "DJF": 1,
-        "JFM": 2,
-        "FMA": 3,
-        "MAM": 4,
-        "AMJ": 5,
-        "MJJ": 6,
-        "JJA": 7,
-        "JAS": 8,
-        "ASO": 9,
-        "SON": 10,
-        "OND": 11,
-        "NDJ": 12,
-    }
+
+def fetch_live_nasa_power(lat: float, lon: float) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+    """Live NASA POWER query for any coordinate, cached under data/cache/live/ (bounded size)."""
+    lat_r, lon_r = round(float(lat), 3), round(float(lon), 3)
+    cache_key = f"live_{lat_r}_{lon_r}".replace("-", "m").replace(".", "p")
+    cache_file = os.path.join(LIVE_CACHE_DIR, f"{cache_key}.json")
+
+    if os.path.exists(cache_file):
+        raw, mode = _read_json(cache_file), "cache"
+    else:
+        raw, mode = fetch_nasa_power_point(lat_r, lon_r), "live"
+        _write_json(cache_file, raw)
+        _prune_live_cache()
+    df, meta = parse_nasa_power_json(raw)
+    meta["source_mode"] = mode
+    return df, meta
+
+
+# ---------------------------------------------------------------------------
+# NOAA ONI
+# ---------------------------------------------------------------------------
+def parse_oni_text(text: str) -> pd.DataFrame:
+    """Maps NOAA's 3-month seasons to their center month (DJF -> January, ..., NDJ -> December)."""
     rows = []
-    for line in txt.splitlines():
+    for line in text.splitlines():
         parts = line.split()
-        if len(parts) >= 4 and parts[0] in season_to_month:
+        if len(parts) >= 4 and parts[0] in ONI_SEASON_CENTER_MONTH:
             try:
-                yr = int(parts[1])
-                mo = season_to_month[parts[0]]
-                anom = float(parts[3])
-                rows.append(
-                    {
-                        "year": yr,
-                        "month": mo,
-                        "date": f"{yr:04d}-{mo:02d}",
-                        "oni": anom,
-                    }
-                )
+                year, month, anom = int(parts[1]), ONI_SEASON_CENTER_MONTH[parts[0]], float(parts[3])
             except ValueError:
                 continue
+            rows.append({"year": year, "month": month, "date": f"{year:04d}-{month:02d}", "oni": anom})
     return pd.DataFrame(rows)
 
 
+def load_noaa_oni() -> pd.DataFrame:
+    """NOAA CPC Oceanic Niño Index, read from cache (downloaded once if missing)."""
+    oni_file = os.path.join(CACHE_DIR, "oni.txt")
+    if os.path.exists(oni_file):
+        with open(oni_file, "r", encoding="utf-8") as f:
+            text = f.read()
+    else:
+        text = _http_get(ONI_URL)
+        with open(oni_file, "w", encoding="utf-8") as f:
+            f.write(text)
+    return parse_oni_text(text)
+
+
+# ---------------------------------------------------------------------------
+# Ecuador regional grid
+# ---------------------------------------------------------------------------
 def load_ecuador_regional_grid_trends(variable: str = "T2M") -> pd.DataFrame:
     """
-    Computes real 45-year Theil-Sen trend slopes and Hamed-Rao p-values across the 96-cell
-    NASA POWER 2D Regional Grid over Ecuador & adjacent Andean/Pacific/Amazonian sectors.
+    Theil-Sen slope and Hamed-Rao p-value for every NASA POWER grid cell over Ecuador.
+    Significance uses Benjamini-Hochberg q-values across all cells (field significance).
     """
     grid_file = os.path.join(CACHE_DIR, "ecuador_regional_grid.json")
     if not os.path.exists(grid_file):
         return pd.DataFrame()
 
-    with open(grid_file, "r", encoding="utf-8") as f:
-        grid_data = json.load(f)
-
-    features = grid_data.get(variable, [])
     rows = []
-    for feat in features:
-        coords = feat.get("geometry", {}).get("coordinates", [0.0, 0.0, 0.0])
-        lon, lat, elev = float(coords[0]), float(coords[1]), float(coords[2])
-        ym_map = feat.get("properties", {}).get("parameter", {}).get(variable, {})
-        pts = []
-        for ym_str, val in ym_map.items():
-            if len(ym_str) == 6:
-                mo = int(ym_str[4:6])
-                if 1 <= mo <= 12 and float(val) > -900:
-                    yr = int(ym_str[0:4])
-                    pts.append(
-                        {
-                            "year": yr,
-                            "month": mo,
-                            "date": f"{yr:04d}-{mo:02d}",
-                            "decimal_year": yr + (mo - 0.5) / 12.0,
-                            variable: float(val),
-                        }
-                    )
-        if len(pts) < 60:
+    for feat in _read_json(grid_file).get(variable, []):
+        lon, lat, elev = (float(c) for c in feat.get("geometry", {}).get("coordinates", [0.0, 0.0, 0.0]))
+        df_cell, _ = parse_nasa_power_json(feat)
+        if variable not in df_cell or df_cell[variable].count() < 60:
             continue
-        df_cell = pd.DataFrame(pts)
         des = deseasonalize_acker(df_cell, variable)
         mk = mann_kendall_hamed_rao(des["decimal_year"].to_numpy(), des["anomaly"].to_numpy())
         rows.append(
@@ -245,130 +237,117 @@ def load_ecuador_regional_grid_trends(variable: str = "T2M") -> pd.DataFrame:
                 "lat": lat,
                 "lon": lon,
                 "elevation_m": elev,
-                "variable": variable,
                 "theil_sen_decade": round(mk["theil_sen_decade"], 4),
                 "p_hamed_rao": round(mk["p_hamed_rao"], 5),
-                "tau": round(mk["tau"], 3),
-                "significant": bool(mk["p_hamed_rao"] < 0.05),
                 "mean_value": round(float(df_cell[variable].mean()), 2),
             }
         )
-    return pd.DataFrame(rows)
+    grid = pd.DataFrame(rows)
+    if grid.empty:
+        return grid
+    grid["q_fdr"] = np.round(benjamini_hochberg_fdr(grid["p_hamed_rao"].tolist()), 5)
+    grid["significant"] = grid["q_fdr"] < SIGNIFICANCE_ALPHA
+    return grid
 
 
-def load_or_fetch_modis_250m(region_id: str, lat: float, lon: float) -> pd.DataFrame:
-    """
-    Loads cached NASA ORNL DAAC Terra MODIS 250m (MOD13Q1) NDVI observations or fetches
-    recent observations live from https://modis.ornl.gov/rst/api/v1/MOD13Q1/subset.
-    """
+# ---------------------------------------------------------------------------
+# MODIS NDVI (ORNL DAAC)
+# ---------------------------------------------------------------------------
+def load_modis_ndvi(region_id: str) -> pd.DataFrame:
+    """Cached MOD13Q1 NDVI series for a region (empty when the region has none)."""
     modis_file = os.path.join(CACHE_DIR, "nasa_modis_250m_ndvi.json")
-    if os.path.exists(modis_file):
-        with open(modis_file, "r", encoding="utf-8") as f:
-            all_modis = json.load(f)
-        if region_id in all_modis and len(all_modis[region_id]) > 0:
-            df = pd.DataFrame(all_modis[region_id])
-            df["year"] = df["calendar_date"].str.slice(0, 4).astype(int)
-            df["month"] = df["calendar_date"].str.slice(5, 7).astype(int)
-            return df
+    if not os.path.exists(modis_file):
+        return pd.DataFrame()
+    records = _read_json(modis_file).get(region_id) or []
+    return pd.DataFrame(records)
 
-    # Live fallback for recent 10-date windows (2023 and 2024 dry seasons)
+
+def fetch_modis_ndvi(lat: float, lon: float, start_date: str, end_date: str, km_window: int = 1) -> List[Dict[str, Any]]:
+    """
+    MOD13Q1 NDVI around (lat, lon) from the ORNL DAAC subset API. km_window extends the box
+    that many km on each side; pixels flagged snow/ice, cloudy or fill are dropped and the
+    remaining NDVI values are summarized by their median.
+    """
+    coords = {"latitude": lat, "longitude": lon}
+    available = _http_get_json(f"{MODIS_API_URL}/dates?{urllib.parse.urlencode(coords)}", timeout=MODIS_TIMEOUT_S).get("dates", [])
+    dates = [d for d in available if start_date <= d["calendar_date"] <= end_date]
+
     records = []
-    windows = [("A2023209", "A2023353"), ("A2024209", "A2024353")]
-    for s_d, e_d in windows:
-        url = (
-            f"https://modis.ornl.gov/rst/api/v1/MOD13Q1/subset?"
-            f"latitude={lat}&longitude={lon}&band=250m_16_days_NDVI"
-            f"&startDate={s_d}&endDate={e_d}&kmAboveBelow=0&kmLeftRight=0"
+    for i in range(0, len(dates), MODIS_DATES_PER_REQUEST):
+        chunk = dates[i:i + MODIS_DATES_PER_REQUEST]
+        window = {**coords, "startDate": chunk[0]["modis_date"], "endDate": chunk[-1]["modis_date"],
+                  "kmAboveBelow": km_window, "kmLeftRight": km_window}
+        ndvi = _http_get_json(
+            f"{MODIS_API_URL}/subset?{urllib.parse.urlencode({**window, 'band': MODIS_NDVI_BAND})}", timeout=MODIS_TIMEOUT_S
         )
-        try:
-            req = urllib.request.Request(url, headers={"Accept": "application/json", "User-Agent": "TerraLens/2.1"})
-            with urllib.request.urlopen(req, context=SSL_CTX, timeout=15) as r:
-                d = json.loads(r.read().decode("utf-8"))
-                scale = float(d.get("scale", 0.0001))
-                for item in d.get("subset", []):
-                    val = item["data"][0]
-                    if val > -2000:
-                        records.append(
-                            {
-                                "modis_date": item["modis_date"],
-                                "calendar_date": item["calendar_date"],
-                                "ndvi": round(val * scale, 4),
-                            }
-                        )
-        except Exception:
-            continue
-    df = pd.DataFrame(records)
-    if not df.empty:
-        df["year"] = df["calendar_date"].str.slice(0, 4).astype(int)
-        df["month"] = df["calendar_date"].str.slice(5, 7).astype(int)
-    return df
+        quality = _http_get_json(
+            f"{MODIS_API_URL}/subset?{urllib.parse.urlencode({**window, 'band': MODIS_RELIABILITY_BAND})}",
+            timeout=MODIS_TIMEOUT_S,
+        )
+        scale = float(ndvi.get("scale") or 0.0001)
+        reliability = {item["modis_date"]: item["data"] for item in quality.get("subset", [])}
+        for item in ndvi.get("subset", []):
+            values = np.asarray(item["data"], dtype=float)
+            flags = np.asarray(reliability.get(item["modis_date"], [-1] * len(values)))
+            good = np.isin(flags, MODIS_GOOD_PIXELS) & (values > -2000)
+            if good.any():
+                records.append(
+                    {
+                        "modis_date": item["modis_date"],
+                        "calendar_date": item["calendar_date"],
+                        "ndvi": round(float(np.median(values[good])) * scale, 4),
+                        "n_valid_pixels": int(good.sum()),
+                        "n_pixels": int(len(values)),
+                    }
+                )
+    return records
 
 
+# ---------------------------------------------------------------------------
+# Meteomatics and Planetary Computer STAC (cached)
+# ---------------------------------------------------------------------------
 def load_meteomatics_1km_cache() -> Dict[str, pd.DataFrame]:
-    """
-    Loads the pre-verified 1 km Meteomatics hydroclimatic downscaling series
-    for Ecuador's regions (Guayas, Paute, Quito, Napo) across 2023–2024.
-    """
+    """Cached Meteomatics 1 km snapshots (one day every 10 days, 2023-2024) per region."""
     mm_file = os.path.join(CACHE_DIR, "meteomatics_1km_ecuador_2023_2024.json")
     if not os.path.exists(mm_file):
         return {}
-    with open(mm_file, "r", encoding="utf-8") as f:
-        raw = json.load(f)
-    out = {}
-    for k, rows in raw.items():
-        if rows:
-            out[k] = pd.DataFrame(rows).sort_values("date").reset_index(drop=True)
-    return out
+    return {
+        region: pd.DataFrame(rows).sort_values("date").reset_index(drop=True)
+        for region, rows in _read_json(mm_file).items()
+        if rows
+    }
 
 
-def load_or_fetch_planetary_computer_stac(region_id: str, lat: float, lon: float) -> List[Dict[str, Any]]:
-    """
-    Queries or loads cached Microsoft Planetary Computer STAC API v1 metadata
-    for Terra/Aqua MODIS 250m (modis-13Q1-061) granules intersecting (lat, lon).
-    """
+def load_planetary_computer_stac(region_id: str) -> List[Dict[str, Any]]:
+    """Cached MODIS granule metadata from the Planetary Computer STAC API (provenance only)."""
     stac_file = os.path.join(CACHE_DIR, "planetary_computer_stac.json")
-    all_stac: Dict[str, List[Dict[str, Any]]] = {}
-    if os.path.exists(stac_file):
-        try:
-            with open(stac_file, "r", encoding="utf-8") as f:
-                all_stac = json.load(f)
-            if region_id in all_stac and len(all_stac[region_id]) > 0:
-                return all_stac[region_id]
-        except Exception:
-            all_stac = {}
+    if not os.path.exists(stac_file):
+        return []
+    return _read_json(stac_file).get(region_id, [])
 
-    body = json.dumps({
-        "collections": ["modis-13Q1-061"],
-        "intersects": {"type": "Point", "coordinates": [float(lon), float(lat)]},
-        "datetime": "2022-01-01T00:00:00Z/2025-12-31T23:59:59Z",
-        "limit": 6,
-    }).encode("utf-8")
-    req = urllib.request.Request(
-        "https://planetarycomputer.microsoft.com/api/stac/v1/search",
-        data=body,
-        headers={"Content-Type": "application/json", "User-Agent": "TerraLens-NASA-SpaceApps/2.1"},
+
+def fetch_planetary_computer_stac(lat: float, lon: float, limit: int = 6) -> List[Dict[str, Any]]:
+    """Searches the modis-13Q1-061 collection for granules that contain (lat, lon)."""
+    result = _http_get_json(
+        STAC_SEARCH_URL,
+        body={
+            "collections": ["modis-13Q1-061"],
+            "intersects": {"type": "Point", "coordinates": [float(lon), float(lat)]},
+            "datetime": f"{DATA_END_YEAR - 3}-01-01T00:00:00Z/{DATA_END_YEAR}-12-31T23:59:59Z",
+            "limit": limit,
+        },
     )
-    feats: List[Dict[str, Any]] = []
-    try:
-        with urllib.request.urlopen(req, context=SSL_CTX, timeout=15) as r:
-            res = json.loads(r.read().decode("utf-8"))
-            for item in res.get("features", []):
-                props = item.get("properties", {})
-                h_tile = props.get("modis:horizontal-tile", 10)
-                v_tile = props.get("modis:vertical-tile", 9)
-                feats.append({
-                    "stac_id": item.get("id", ""),
-                    "collection": item.get("collection", "modis-13Q1-061"),
-                    "datetime": (props.get("datetime") or props.get("start_datetime") or "")[:10],
-                    "platform": props.get("platform", "terra,aqua"),
-                    "tile_grid": f"h{int(h_tile):02d}v{int(v_tile):02d}",
-                    "bbox": [round(float(x), 2) for x in (item.get("bbox") or [])],
-                    "assets": list((item.get("assets") or {}).keys())[:6],
-                })
-        if feats:
-            all_stac[region_id] = feats
-            with open(stac_file, "w", encoding="utf-8") as f:
-                json.dump(all_stac, f, indent=2)
-    except Exception:
-        pass
-    return feats
+    items = []
+    for item in result.get("features", []):
+        props = item.get("properties", {})
+        items.append(
+            {
+                "stac_id": item.get("id", ""),
+                "collection": item.get("collection", "modis-13Q1-061"),
+                "datetime": (props.get("datetime") or props.get("start_datetime") or "")[:10],
+                "platform": props.get("platform", ""),
+                "tile_grid": f"h{int(props.get('modis:horizontal-tile', 0)):02d}v{int(props.get('modis:vertical-tile', 0)):02d}",
+                "bbox": [round(float(x), 2) for x in (item.get("bbox") or [])],
+            }
+        )
+    return items

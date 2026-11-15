@@ -1,238 +1,268 @@
 """
-TerraLens v2.1 Full-Stack REST API & Interactive Web Observatory Server (FastAPI).
-Serves both the REST API (/api/*) and the interactive Leaflet + Chart.js Web Observatory (/).
+TerraLens REST API and web observatory server (FastAPI).
+
+Serves the static observatory at / and a read-only JSON API under /api. Heavy computations are
+memoized in core.analysis_service; the guided-case findings are warmed up at startup.
 """
 
-import os
 import json
-from typing import Optional
-import numpy as np
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+import os
+import threading
+import time
+from collections import deque
+from contextlib import asynccontextmanager
+from typing import Any, Dict, List, Optional
 
-from core.catalog import REGIONS, VARIABLES, GUIDED_CASES
+import numpy as np
+import pandas as pd
+from fastapi import Depends, FastAPI, HTTPException, Path, Query, Request
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+
+from core import analysis_service as svc
+from core.case_studies import public_cases
+from core.catalog import (
+    DATA_END_YEAR,
+    DATA_START_YEAR,
+    MIN_WINDOW_YEARS,
+    ML_START_YEAR,
+    REGIONS,
+    VARIABLES,
+    analysis_start_year,
+    known_break_date,
+)
 from core.connectors import (
-    load_region_nasa_power,
+    UpstreamDataError,
     fetch_live_nasa_power,
-    load_noaa_oni,
-    load_ecuador_regional_grid_trends,
-    load_or_fetch_modis_250m,
     load_meteomatics_1km_cache,
-    load_or_fetch_planetary_computer_stac,
+    load_modis_ndvi,
+    load_planetary_computer_stac,
 )
-from core.stats_engine import (
-    analyze_single_variable,
-    compare_regional_dipole,
-    benjamini_hochberg_fdr,
-)
-from core.ml_engine import (
-    run_multivariate_anomaly_detective,
-    run_acker_ml_outlier_experiment_all_vars,
-    run_spatiotemporal_cube_ml,
-)
+from core.ml_engine import run_multivariate_anomaly_detective
+from core.stats_engine import analyze_single_variable
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATIC_DIR = os.path.join(BASE_DIR, "static")
-os.makedirs(STATIC_DIR, exist_ok=True)
+MANIFEST_PATH = os.path.join(BASE_DIR, "models", "training_manifest.json")
+MODIS_FALLBACK_REGION = "EC_Andes_Paute"
+MAP_VARIABLES = [code for code, meta in VARIABLES.items() if meta["map"]]
+LIVE_PROBE_MAX_CALLS = 20
+LIVE_PROBE_PERIOD_S = 60.0
+
+
+class SlidingWindowLimiter:
+    """Process-wide limit of max_calls per period (protects the upstream NASA POWER service)."""
+
+    def __init__(self, max_calls: int, period_s: float) -> None:
+        self.max_calls = max_calls
+        self.period_s = period_s
+        self._calls: deque = deque()
+        self._lock = threading.Lock()
+
+    def allow(self) -> bool:
+        now = time.monotonic()
+        with self._lock:
+            while self._calls and now - self._calls[0] > self.period_s:
+                self._calls.popleft()
+            if len(self._calls) >= self.max_calls:
+                return False
+            self._calls.append(now)
+            return True
+
+
+live_probe_limiter = SlidingWindowLimiter(LIVE_PROBE_MAX_CALLS, LIVE_PROBE_PERIOD_S)
+
+
+def _warm_caches() -> None:
+    public_cases()
+    svc.warm_up()
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    # Precompute the guided-case findings and every region in the background so clicks are instant.
+    threading.Thread(target=_warm_caches, name="warm-caches", daemon=True).start()
+    yield
+
 
 app = FastAPI(
-    title="TerraLens v2.1 — Multi-Scale Earth System Trend, Breakpoint & Anomaly Detective",
-    version="2.1.0",
+    title="TerraLens — Earth System Trend Detective",
+    version="2.2.0",
     description=(
-        "Peer-reviewed statistical trend inference (Acker et al. 2009, Hamed-Rao 1998, Santer et al. 2000, "
-        "Pettitt 1979, Benjamini-Hochberg FDR) and 3-Model Explainable Machine Learning "
-        "(Isolation Forest + LOF + Mahalanobis + Random Forest Lag Detective + PCA + KMeans) "
-        "on real NASA MERRA-2/CERES, NASA Terra MODIS 250m, NOAA ONI, and Meteomatics 1km datasets."
+        "Autocorrelation-aware trend, change-point and anomaly analysis of NASA POWER (MERRA-2, "
+        "GEWEX SRB, CERES), NOAA ONI, MODIS NDVI and Meteomatics data."
     ),
+    lifespan=lifespan,
 )
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app.add_middleware(GZipMiddleware, minimum_size=1024)
 
 
-@app.get("/")
-def serve_observatory_ui():
-    index_path = os.path.join(STATIC_DIR, "index.html")
-    if os.path.exists(index_path):
-        return FileResponse(index_path)
-    return {"message": "TerraLens v2.1 API is running. Visit /docs for OpenAPI documentation."}
+@app.exception_handler(UpstreamDataError)
+async def upstream_error_handler(_: Request, exc: UpstreamDataError) -> JSONResponse:
+    return JSONResponse(status_code=502, content={"detail": str(exc)})
 
 
-def _load_ml_manifest() -> dict:
-    manifest_path = os.path.join(BASE_DIR, "models", "training_manifest.json")
-    if os.path.exists(manifest_path):
-        try:
-            with open(manifest_path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return {}
-    return {}
+# ---------------------------------------------------------------------------
+# Input validation
+# ---------------------------------------------------------------------------
+def _check_region(region_id: str, status_code: int = 422) -> str:
+    if region_id not in REGIONS:
+        raise HTTPException(status_code=status_code, detail=f"Unknown region: {region_id}")
+    return region_id
 
 
-@app.get("/api/ml-manifest")
-def get_ml_manifest():
-    return _load_ml_manifest()
+def _check_variable(variable: str, allowed: Optional[List[str]] = None) -> str:
+    if variable not in (allowed or VARIABLES):
+        raise HTTPException(status_code=422, detail=f"Unknown or unsupported variable: {variable}")
+    return variable
+
+
+def path_region(region_id: str = Path(...)) -> str:
+    return _check_region(region_id, status_code=404)
+
+
+def query_variable(variable: str = Query("T2M")) -> str:
+    return _check_variable(variable)
+
+
+class YearWindow:
+    """start_year/end_year query parameters inside the data period, at least MIN_WINDOW_YEARS long."""
+
+    def __init__(
+        self,
+        start_year: int = Query(DATA_START_YEAR, ge=DATA_START_YEAR, le=DATA_END_YEAR),
+        end_year: int = Query(DATA_END_YEAR, ge=DATA_START_YEAR, le=DATA_END_YEAR),
+    ) -> None:
+        if end_year - start_year + 1 < MIN_WINDOW_YEARS:
+            raise HTTPException(
+                status_code=422,
+                detail=f"The analysis window must span at least {MIN_WINDOW_YEARS} years (got {start_year}–{end_year}).",
+            )
+        self.start_year = start_year
+        self.end_year = end_year
+
+
+# ---------------------------------------------------------------------------
+# Serialization helpers
+# ---------------------------------------------------------------------------
+def _records(df: pd.DataFrame, columns: List[str], digits: int = 4) -> List[Dict[str, Any]]:
+    """DataFrame rows as JSON-safe dicts (rounded floats, NaN -> None)."""
+    if df.empty:
+        return []
+    out = df[columns].copy()
+    float_cols = out.select_dtypes(include="number").columns
+    out[float_cols] = out[float_cols].round(digits)
+    return out.astype(object).where(pd.notna(out), None).to_dict(orient="records")
+
+
+def _trend_payload(res: Dict[str, Any]) -> Dict[str, Any]:
+    keys = ("monthly_ols", "monthly_mk", "annual_ols", "annual_mk", "pettitt", "homogeneity", "known_break",
+            "enso", "verdict", "warnings", "monthly_climatology", "seasonal_trends", "n_months", "n_years",
+            "year_start", "year_end")
+    return {k: res[k] for k in keys}
+
+
+def _monthly_series(res: Dict[str, Any], variable: str) -> List[Dict[str, Any]]:
+    ols, mk = res["monthly_ols"], res["monthly_mk"]
+    des = res["monthly_series"].assign(
+        raw_val=lambda d: d[variable],
+        ols_line=lambda d: ols["intercept"] + ols["slope_yr"] * d["decimal_year"],
+        ts_line=lambda d: mk["theil_sen_intercept"] + mk["theil_sen_yr"] * d["decimal_year"],
+    )
+    return _records(des, ["date", "raw_val", "clim_mean", "anomaly", "z_score", "ols_line", "ts_line"])
+
+
+def _annual_series(res: Dict[str, Any]) -> List[Dict[str, Any]]:
+    mk = res["annual_mk"]
+    ann = res["annual_series"].assign(ts_line=lambda d: mk["theil_sen_intercept"] + mk["theil_sen_yr"] * d["year"])
+    return _records(ann, ["year", "annual_anomaly", "annual_raw", "ts_line"])
+
+
+def _ml_payload(detective: Dict[str, Any]) -> Dict[str, Any]:
+    matrix = detective["matrix"]
+    points = (
+        _records(matrix, ["date", "pca_1", "pca_2", "is_anomaly", "cluster_id", "consensus_score_pct"], 3)
+        if "pca_1" in matrix
+        else []
+    )
+    return {
+        "n_months": detective["n_months"],
+        "anomalies": detective["anomalies"],
+        "pca": detective["pca"],
+        "regimes": detective["regimes"],
+        "lagged_driver_model": detective["lagged_driver_model"],
+        "pca_points": points,
+    }
+
+
+def _region_payload(region_id: str) -> Dict[str, Any]:
+    return {"id": region_id, **REGIONS[region_id]}
+
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
+@app.get("/", include_in_schema=False)
+def serve_observatory_ui() -> FileResponse:
+    return FileResponse(os.path.join(STATIC_DIR, "index.html"))
 
 
 @app.get("/api/catalog")
-def get_catalog():
+def get_catalog() -> Dict[str, Any]:
     return {
+        "data_period": [DATA_START_YEAR, DATA_END_YEAR],
+        "ml_start_year": ML_START_YEAR,
+        "min_window_years": MIN_WINDOW_YEARS,
         "regions": REGIONS,
         "variables": VARIABLES,
-        "guided_cases": GUIDED_CASES,
-        "ml_manifest": _load_ml_manifest(),
+        "map_variables": MAP_VARIABLES,
+        "cases": public_cases(),
     }
+
+
+@app.get("/api/ml-manifest")
+def get_ml_manifest() -> Dict[str, Any]:
+    if not os.path.exists(MANIFEST_PATH):
+        return {}
+    with open(MANIFEST_PATH, "r", encoding="utf-8") as f:
+        return json.load(f)
 
 
 @app.get("/api/full-dashboard/{region_id}")
 def get_full_region_dashboard(
-    region_id: str,
-    variable: str = Query("T2M"),
-    start_year: int = Query(1981),
-    end_year: int = Query(2025),
+    region_id: str = Depends(path_region),
+    variable: str = Depends(query_variable),
+    window: YearWindow = Depends(),
     exclude_ml_extremes: bool = Query(False),
     homogeneous_ceres: bool = Query(True),
-):
-    if region_id not in REGIONS:
-        raise HTTPException(status_code=404, detail=f"Unknown region_id: {region_id}")
-    if variable not in VARIABLES:
-        raise HTTPException(status_code=400, detail=f"Unknown variable: {variable}")
+) -> Dict[str, Any]:
+    detective = svc.ml_detective(region_id, window.start_year, window.end_year)
+    excluded = tuple(detective["extreme_dates"]) if exclude_ml_extremes else ()
 
-    df, meta = load_region_nasa_power(region_id)
-    oni_df = load_noaa_oni()
+    def analysis(excluded_dates: tuple) -> Dict[str, Any]:
+        return svc.variable_analysis(region_id, variable, window.start_year, window.end_year, homogeneous_ceres, excluded_dates)
 
-    eff_start = max(start_year, 2001) if (variable == "ALLSKY_SFC_SW_DWN" and homogeneous_ceres and start_year < 2001) else start_year
-
-    # 1. Run 3-Model ML Ensemble + Lagged Driver RF + PCA + KMeans
-    ml_res = run_multivariate_anomaly_detective(
-        df, oni_df=oni_df, start_year=max(1984, start_year), end_year=end_year
-    )
-    excl_dates = ml_res["extreme_dates"] if exclude_ml_extremes else None
-
-    # 2. Run baseline & active single-variable statistical analysis
-    res_base = analyze_single_variable(
-        df, variable, oni_df=oni_df, start_year=eff_start, end_year=end_year, exclude_dates=None
-    )
-    res_act = (
-        analyze_single_variable(
-            df, variable, oni_df=oni_df, start_year=eff_start, end_year=end_year, exclude_dates=excl_dates
-        )
-        if exclude_ml_extremes
-        else res_base
-    )
-
-    # 3. Format monthly series for frontend interactive chart
-    des = res_act["monthly_series"].copy()
-    ols_m = res_act["monthly_ols"]
-    mk_m = res_act["monthly_mk"]
-    des["ols_line"] = np.round(ols_m["intercept"] + ols_m["slope_yr"] * des["decimal_year"], 4)
-    des["ts_line"] = np.round(mk_m["theil_sen_intercept"] + mk_m["theil_sen_yr"] * des["decimal_year"], 4)
-    des["raw_val"] = np.round(des[variable], 4)
-    des["clim_mean"] = np.round(des["clim_mean"], 4)
-    des["anomaly"] = np.round(des["anomaly"], 4)
-    des["z_score"] = np.round(des["z_score"], 3)
-
-    monthly_records = des[
-        ["date", "year", "month", "raw_val", "clim_mean", "anomaly", "z_score", "ols_line", "ts_line"]
-    ].to_dict(orient="records")
-
-    ann = res_act["annual_series"].copy()
-    ann_ols = res_act["annual_ols"]
-    ann["ols_line"] = np.round(ann_ols["intercept"] + ann_ols["slope_yr"] * ann["year"], 4)
-    ann["annual_anomaly"] = np.round(ann["annual_anomaly"], 4)
-    ann["annual_raw"] = np.round(ann["annual_raw"], 4)
-    annual_records = ann[["year", "annual_anomaly", "annual_raw", "ols_line"]].to_dict(orient="records")
-
-    # 4. Multi-variable auto-scan with Benjamini-Hochberg FDR
-    scan_rows = []
-    p_vals = []
-    for vc, vmeta in VARIABLES.items():
-        sy = 2001 if (vc == "ALLSKY_SFC_SW_DWN" and homogeneous_ceres) else 1981
-        r_s = analyze_single_variable(df, vc, oni_df=oni_df, start_year=sy, end_year=2025)
-        p_hr = r_s["monthly_mk"]["p_hamed_rao"]
-        p_vals.append(p_hr)
-        scan_rows.append(
-            {
-                "variable": vc,
-                "short_name": vmeta["short_name"],
-                "units": vmeta["decade_units"],
-                "period": f"{r_s['year_start']}–{r_s['year_end']}",
-                "theil_sen_decade": round(r_s["monthly_mk"]["theil_sen_decade"], 4),
-                "ols_decade": round(r_s["monthly_ols"]["slope_decade"], 4),
-                "lag1_r": round(r_s["monthly_ols"]["lag1_r"], 3),
-                "n_eff": round(r_s["monthly_ols"]["n_eff"], 1),
-                "p_naive": round(r_s["monthly_ols"]["p_naive"], 5),
-                "p_santer": round(r_s["monthly_ols"]["p_santer"], 5),
-                "p_hamed_rao": round(p_hr, 5),
-                "p_annual_mk": round(r_s["annual_mk"]["p_original"], 5),
-                "pettitt_date": r_s["pettitt"]["change_date"],
-                "pettitt_p": round(r_s["pettitt"]["p_value"], 6),
-                "r_oni": round(r_s["enso"]["r_oni"], 3),
-                "verdict": r_s["verdict"]["verdict"],
-                "badge_color": r_s["verdict"]["badge_color"],
-            }
-        )
-    q_vals = benjamini_hochberg_fdr(p_vals)
-    for r_row, qv in zip(scan_rows, q_vals):
-        r_row["q_fdr"] = round(qv, 5)
-
-    # 5. Acker ML Outlier Experiment table
-    acker_exp = run_acker_ml_outlier_experiment_all_vars(df, oni_df=oni_df, use_homogeneous_ceres=homogeneous_ceres)
-
-    # 6. PCA scatter points
-    z_mat = ml_res["matrix"]
-    pca_points = []
-    if not z_mat.empty:
-        for _, row in z_mat.iterrows():
-            pca_points.append(
-                {
-                    "date": str(row["date"]),
-                    "pca_1": float(row["pca_1"]),
-                    "pca_2": float(row["pca_2"]),
-                    "is_anomaly": bool(row["is_anomaly"]),
-                    "consensus_score_pct": float(row["consensus_score_pct"]),
-                    "model_votes": int(row["model_votes"]),
-                    "regime_name": str(row["regime_name"]),
-                }
-            )
+    res_active = analysis(excluded)
+    res_baseline = analysis(()) if excluded else res_active
 
     return {
-        "meta": meta,
-        "region": REGIONS[region_id],
+        "region": _region_payload(region_id),
         "variable_info": VARIABLES[variable],
-        "year_start": res_act["year_start"],
-        "year_end": res_act["year_end"],
-        "n_months": res_act["n_months"],
-        "n_years": res_act["n_years"],
-        "monthly_ols": res_act["monthly_ols"],
-        "monthly_mk": res_act["monthly_mk"],
-        "baseline_mk": res_base["monthly_mk"],
-        "annual_ols": res_act["annual_ols"],
-        "annual_mk": res_act["annual_mk"],
-        "pettitt": res_act["pettitt"],
-        "enso": res_act["enso"],
-        "verdict": res_act["verdict"],
-        "monthly_climatology": res_act["monthly_climatology"],
-        "seasonal_trends": res_act["seasonal_trends"],
-        "monthly_series": monthly_records,
-        "annual_series": annual_records,
-        "auto_scan": scan_rows,
-        "acker_experiment": acker_exp,
-        "ml": {
-            "anomalies": ml_res["anomalies"],
-            "pca_variance_ratio": ml_res["pca_variance_ratio"],
-            "pca_loadings": ml_res["pca_loadings"],
-            "cluster_summary": ml_res["cluster_summary"],
-            "lagged_driver_model": ml_res["lagged_driver_model"],
-            "pca_points": pca_points,
+        "window": {
+            "requested": [window.start_year, window.end_year],
+            "analysed": [res_active["year_start"], res_active["year_end"]],
+            "start_moved_for_variable": analysis_start_year(variable, window.start_year, homogeneous_ceres) != window.start_year,
         },
-        "ml_manifest": _load_ml_manifest(),
+        "filters": {"exclude_ml_extremes": exclude_ml_extremes, "homogeneous_ceres": homogeneous_ceres,
+                    "n_excluded_months": len(excluded)},
+        **_trend_payload(res_active),
+        "baseline_mk": res_baseline["monthly_mk"],
+        "monthly_series": _monthly_series(res_active, variable),
+        "annual_series": _annual_series(res_active),
+        "auto_scan": svc.auto_scan(region_id, homogeneous_ceres),
+        "outlier_sensitivity": svc.outlier_sensitivity(region_id, homogeneous_ceres),
+        "ml": _ml_payload(detective),
     }
 
 
@@ -241,45 +271,39 @@ def compare_dipole_endpoint(
     region_a: str = Query("EC_Coast_Guayas"),
     region_b: str = Query("BR_Amazon_Manaus"),
     variable: str = Query("PRECTOTCORR"),
-    start_year: int = Query(1981),
-    end_year: int = Query(2025),
-):
-    df_a, _ = load_region_nasa_power(region_a)
-    df_b, _ = load_region_nasa_power(region_b)
-    oni_df = load_noaa_oni()
-    sy = 2001 if variable == "ALLSKY_SFC_SW_DWN" and start_year < 2001 else start_year
-    res = compare_regional_dipole(df_a, df_b, variable, oni_df=oni_df, start_year=sy, end_year=end_year)
-    merged = res["merged_series"].copy()
-    merged["anom_a"] = np.round(merged["anom_a"], 4)
-    merged["anom_b"] = np.round(merged["anom_b"], 4)
-    merged["z_a"] = np.round(merged["z_a"], 3)
-    merged["z_b"] = np.round(merged["z_b"], 3)
+    window: YearWindow = Depends(),
+) -> Dict[str, Any]:
+    _check_region(region_a)
+    _check_region(region_b)
+    _check_variable(variable)
+    if region_a == region_b:
+        raise HTTPException(status_code=422, detail="Choose two different regions.")
+
+    res = svc.dipole(region_a, region_b, variable, window.start_year, window.end_year)
+
+    def _stats(r: Dict[str, Any]) -> Dict[str, Any]:
+        enso = r["enso"]
+        return {
+            "theil_sen_decade": r["monthly_mk"]["theil_sen_decade"],
+            "p_hamed_rao": r["monthly_mk"]["p_hamed_rao"],
+            "verdict": r["verdict"],
+            "warnings": r["warnings"],
+            "enso": {k: enso[k] for k in ("r_oni", "p_oni", "best_lag", "r_best", "q_best")},
+            "period": [r["year_start"], r["year_end"]],
+        }
+
     return {
-        "variable": variable,
         "variable_info": VARIABLES[variable],
-        "region_a_info": REGIONS[region_a],
-        "region_b_info": REGIONS[region_b],
-        "stats_a": {
-            "theil_sen_decade": res["region_a"]["monthly_mk"]["theil_sen_decade"],
-            "p_hamed_rao": res["region_a"]["monthly_mk"]["p_hamed_rao"],
-            "r_oni": res["region_a"]["enso"]["r_oni"],
-            "p_oni": res["region_a"]["enso"]["p_oni"],
-            "verdict": res["region_a"]["verdict"]["verdict"],
-        },
-        "stats_b": {
-            "theil_sen_decade": res["region_b"]["monthly_mk"]["theil_sen_decade"],
-            "p_hamed_rao": res["region_b"]["monthly_mk"]["p_hamed_rao"],
-            "r_oni": res["region_b"]["enso"]["r_oni"],
-            "p_oni": res["region_b"]["enso"]["p_oni"],
-            "verdict": res["region_b"]["verdict"]["verdict"],
-        },
-        "pearson_r": res["pearson_r"],
-        "pearson_p": res["pearson_p"],
-        "spearman_rho": res["spearman_rho"],
+        "region_a_info": _region_payload(region_a),
+        "region_b_info": _region_payload(region_b),
+        "stats_a": _stats(res["region_a"]),
+        "stats_b": _stats(res["region_b"]),
+        "cross_correlation": res["cross_correlation"],
         "r_during_strong_enso": res["r_during_strong_enso"],
-        "has_opposite_secular_slopes": res["has_opposite_secular_slopes"],
-        "has_opposite_enso_teleconnection": res["has_opposite_enso_teleconnection"],
-        "series": merged[["date", "year", "month", "z_a", "z_b", "anom_a", "anom_b", "oni"]].fillna(0.0).to_dict(orient="records"),
+        "n_strong_enso_months": res["n_strong_enso_months"],
+        "trend_relation": res["trend_relation"],
+        "enso_relation": res["enso_relation"],
+        "series": _records(res["merged_series"], ["date", "z_a", "z_b", "oni"], 3),
     }
 
 
@@ -287,24 +311,24 @@ def compare_dipole_endpoint(
 def get_multiscale_data(
     region_id: str = Query("EC_Andes_Paute"),
     grid_variable: str = Query("T2M"),
-):
-    gv = grid_variable if grid_variable in ["T2M", "PRECTOTCORR", "GWETROOT"] else "T2M"
-    grid_df = load_ecuador_regional_grid_trends(gv)
-    modis_reg = region_id if REGIONS.get(region_id, {}).get("has_modis_250m") else "EC_Andes_Paute"
-    r_info = REGIONS[modis_reg]
-    modis_df = load_or_fetch_modis_250m(modis_reg, r_info["lat"], r_info["lon"])
-    stac_items = load_or_fetch_planetary_computer_stac(modis_reg, r_info["lat"], r_info["lon"])
-    mm_dict = load_meteomatics_1km_cache()
-    mm_out = {k: v.to_dict(orient="records") for k, v in mm_dict.items()}
+) -> Dict[str, Any]:
+    _check_region(region_id)
+    _check_variable(grid_variable, allowed=MAP_VARIABLES)
+
+    modis_region = region_id if REGIONS[region_id]["has_modis_250m"] else MODIS_FALLBACK_REGION
+    grid = svc.grid_trends(grid_variable)
     return {
-        "grid_variable": gv,
-        "grid_units": VARIABLES[gv]["decade_units"],
-        "grid_cells": grid_df.to_dict(orient="records") if not grid_df.empty else [],
-        "modis_region_id": modis_reg,
-        "modis_region_name": r_info["name"],
-        "modis_250m": modis_df.to_dict(orient="records") if not modis_df.empty else [],
-        "planetary_computer_stac": stac_items,
-        "meteomatics_1km": mm_out,
+        "grid_variable": grid_variable,
+        "grid_cells": _records(grid, list(grid.columns)) if not grid.empty else [],
+        "modis": {
+            "region_id": modis_region,
+            "is_fallback": modis_region != region_id,
+            "records": _records(load_modis_ndvi(modis_region), ["calendar_date", "ndvi"]),
+        },
+        "planetary_computer_stac": load_planetary_computer_stac(modis_region),
+        "meteomatics_1km": {
+            region: _records(df, list(df.columns), 3) for region, df in load_meteomatics_1km_cache().items()
+        },
     }
 
 
@@ -312,36 +336,28 @@ def get_multiscale_data(
 def live_coordinate_probe(
     lat: float = Query(..., ge=-90.0, le=90.0),
     lon: float = Query(..., ge=-180.0, le=180.0),
-    variable: str = Query("T2M"),
-):
+    variable: str = Depends(query_variable),
+) -> Dict[str, Any]:
+    if not live_probe_limiter.allow():
+        raise HTTPException(status_code=429, detail="Too many live probes; wait a minute and try again.")
+
     df, meta = fetch_live_nasa_power(lat, lon)
-    oni_df = load_noaa_oni()
-    sy = 2001 if variable == "ALLSKY_SFC_SW_DWN" else 1981
-    res = analyze_single_variable(df, variable, oni_df=oni_df, start_year=sy, end_year=2025)
-    ml_res = run_multivariate_anomaly_detective(df, oni_df=oni_df, start_year=1984, end_year=2025)
+    if variable not in df.columns or df[variable].count() < 60:
+        raise HTTPException(status_code=422, detail=f"NASA POWER has too little {variable} data at this coordinate.")
+
+    res = analyze_single_variable(
+        df, variable, oni_df=svc.oni(),
+        start_year=analysis_start_year(variable, DATA_START_YEAR, homogeneous_splice=True),
+        end_year=DATA_END_YEAR, known_break_date=known_break_date(variable),
+    )
+    detective = run_multivariate_anomaly_detective(df, oni_df=svc.oni(), start_year=ML_START_YEAR, end_year=DATA_END_YEAR)
     return {
-        "meta": meta,
+        "meta": {**meta, "lat": float(np.round(meta["lat"], 3)), "lon": float(np.round(meta["lon"], 3))},
         "variable": variable,
         "variable_info": VARIABLES[variable],
-        "monthly_ols": res["monthly_ols"],
-        "monthly_mk": res["monthly_mk"],
-        "pettitt": res["pettitt"],
-        "enso": res["enso"],
-        "verdict": res["verdict"],
-        "top_anomalies": ml_res["anomalies"][:5],
-        "lagged_driver_model": ml_res["lagged_driver_model"],
+        **_trend_payload(res),
+        "top_anomalies": detective["anomalies"][:5],
     }
 
 
-@app.get("/api/cube-ml")
-def get_spatiotemporal_cube_ml():
-    oni_df = load_noaa_oni()
-    region_dfs = {}
-    for rid in REGIONS:
-        df_r, _ = load_region_nasa_power(rid)
-        region_dfs[rid] = df_r
-    return run_spatiotemporal_cube_ml(region_dfs, oni_df=oni_df)
-
-
-if os.path.exists(STATIC_DIR):
-    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

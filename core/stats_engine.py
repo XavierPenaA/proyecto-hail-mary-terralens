@@ -1,28 +1,51 @@
 """
-TerraLens v2.1 Statistical Inference Engine (Zero-Hallucination, Peer-Reviewed Formulations).
+TerraLens statistical inference engine.
 
-Implements:
-1. Acker et al. (2009, NASA GES DISC NTRS 20090042747) 3-Step Deseasonalization.
-2. Ordinary Least Squares (OLS) with t-test, ANOVA F-test, 95% CI, and Santer et al. (2000)
-   lag-1 autocorrelation adjustment (effective sample size n_eff).
-3. Non-parametric Mann-Kendall Test (standard + Hamed & Rao 1998 variance-corrected
-   Modified Mann-Kendall for autocorrelated series) and Theil-Sen Robust Estimator.
-4. Pettitt (1979) Non-Parametric Change-Point & Satellite Splice Detector.
-5. Benjamini-Hochberg (1995) False Discovery Rate (FDR q-value) for multi-variable scans.
+Every function is deterministic (bootstrap draws use a fixed seed) and returns plain
+numbers or stable string codes; human-readable labels live in the frontend locales.
+
+Methods and the references they follow:
+- Monthly deseasonalization, annual anomalies and seasonal subsets
+  (Acker et al., 2009, NASA NTRS 20090042747).
+- OLS with the Santer et al. (2000) lag-1 effective sample size.
+- Mann-Kendall with the Hamed & Rao (1998) variance correction and the Theil-Sen slope (Sen, 1968).
+- Pettitt (1979) change-point location with a circular block-bootstrap p-value, so serial
+  autocorrelation does not inflate its significance.
+- Step-versus-trend model comparison (BIC) to flag trends that one level shift explains better.
+- Lagged ENSO correlations with the Bretherton et al. (1999) effective sample size.
+- Benjamini & Hochberg (1995) false discovery rate.
 """
 
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence
+
 import numpy as np
 import pandas as pd
 from scipy import stats
 
+SIGNIFICANCE_ALPHA = 0.05
+MARGINAL_ALPHA = 0.10
+BOOTSTRAP_SAMPLES = 999
+BOOTSTRAP_SEED = 2009
+# Kass & Raftery (1995): a BIC difference above 10 is "very strong" evidence for one model.
+STEP_EVIDENCE_BIC = 10.0
+MAX_ENSO_LAG_MONTHS = 6
+MIN_MONTHS_EACH_SIDE_OF_BREAK = 24
+# Seasons are labelled by the year of their last month, so DJF 1998 = Dec 1997 + Jan-Feb 1998.
+SEASONS = (
+    ("DJF", (12, 1, 2)),
+    ("MAM", (3, 4, 5)),
+    ("JJA", (6, 7, 8)),
+    ("SON", (9, 10, 11)),
+)
 
+
+# ---------------------------------------------------------------------------
+# Deseasonalization (Acker et al., 2009)
+# ---------------------------------------------------------------------------
 def deseasonalize_acker(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
     """
-    Acker et al. (2009, p. 3) 3-Step Deseasonalization:
-      - Computes monthly climatological mean X_bar_m and standard deviation s_m
-      - Computes monthly absolute anomaly A_{y,m} = X_{y,m} - X_bar_m
-      - Computes monthly standardized anomaly Z_{y,m} = (X_{y,m} - X_bar_m) / s_m
+    Step 1 of Acker et al. (2009): subtract each calendar month's mean to obtain monthly anomalies.
+    Also returns standardized anomalies z = (x - mean_m) / std_m for multivariate comparisons.
     """
     sub = df[["year", "month", "date", "decimal_year", value_col]].dropna().copy()
     sub = sub.sort_values(["year", "month"]).reset_index(drop=True)
@@ -32,8 +55,7 @@ def deseasonalize_acker(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
         .agg(clim_mean="mean", clim_std=lambda x: float(np.std(x, ddof=1)) if len(x) > 1 else 1.0)
         .reset_index()
     )
-    sub = sub.merge(clim, on="month", how="left")
-    sub = sub.sort_values(["year", "month"]).reset_index(drop=True)
+    sub = sub.merge(clim, on="month", how="left").sort_values(["year", "month"]).reset_index(drop=True)
 
     sub["anomaly"] = sub[value_col] - sub["clim_mean"]
     safe_std = np.where(sub["clim_std"] > 1e-12, sub["clim_std"], 1.0)
@@ -41,84 +63,87 @@ def deseasonalize_acker(df: pd.DataFrame, value_col: str) -> pd.DataFrame:
     return sub
 
 
-def compute_annual_anomalies(deseason_df: pd.DataFrame, min_months: int = 9) -> pd.DataFrame:
-    """
-    Acker et al. (2009) Step 2: Average monthly anomalies inside each calendar year
-    to produce an annual anomaly series immune to intra-annual seasonal autocorrelation.
-    """
+def compute_annual_anomalies(deseason_df: pd.DataFrame, value_col: str, min_months: int = 9) -> pd.DataFrame:
+    """Step 2 of Acker et al. (2009): average the monthly anomalies of each calendar year."""
     grp = (
         deseason_df.groupby("year")
         .agg(
             annual_anomaly=("anomaly", "mean"),
-            annual_raw=(deseason_df.columns[4], "mean"),
+            annual_raw=(value_col, "mean"),
             n_months=("anomaly", "count"),
         )
         .reset_index()
     )
-    grp = grp[grp["n_months"] >= min_months].sort_values("year").reset_index(drop=True)
-    return grp
+    return grp[grp["n_months"] >= min_months].sort_values("year").reset_index(drop=True)
 
 
-def compute_climatology_and_seasonal_trends(deseason_df: pd.DataFrame, value_col: str) -> Dict[str, Any]:
+def season_year(year: pd.Series, month: pd.Series) -> pd.Series:
+    """December belongs to the following year's DJF season."""
+    return year + (month == 12).astype(int)
+
+
+def compute_climatology_and_seasonal_trends(deseason_df: pd.DataFrame) -> Dict[str, Any]:
     """
-    Acker et al. (2009) Step 3: Computes the 12-month climatological baseline profile
-    (mean ± 1σ per calendar month) and seasonal sub-series trends (DJF, MAM, JJA, SON)
-    to isolate which specific season drives the long-term secular change.
+    Step 3 of Acker et al. (2009): the 12-month climatology and trends of each season's
+    yearly mean anomaly. Only complete seasons (3 months) are used.
     """
-    month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     clim_rows = []
-    for m_idx in range(1, 13):
-        m_sub = deseason_df[deseason_df["month"] == m_idx]
+    for month in range(1, 13):
+        m_sub = deseason_df[deseason_df["month"] == month]
         if m_sub.empty:
             continue
-        c_mean = float(m_sub["clim_mean"].iloc[0])
-        c_std = float(m_sub["clim_std"].iloc[0])
         mk_m = mann_kendall_hamed_rao(m_sub["year"].to_numpy(dtype=float), m_sub["anomaly"].to_numpy(dtype=float))
-        clim_rows.append({
-            "month": m_idx,
-            "month_name": month_names[m_idx - 1],
-            "clim_mean": round(c_mean, 4),
-            "clim_std": round(c_std, 4),
-            "theil_sen_decade": round(mk_m["theil_sen_decade"], 4),
-            "p_hamed_rao": round(mk_m["p_hamed_rao"], 5),
-        })
+        clim_rows.append(
+            {
+                "month": month,
+                "clim_mean": round(float(m_sub["clim_mean"].iloc[0]), 4),
+                "clim_std": round(float(m_sub["clim_std"].iloc[0]), 4),
+                "theil_sen_decade": round(mk_m["theil_sen_decade"], 4),
+                "p_hamed_rao": round(mk_m["p_hamed_rao"], 5),
+            }
+        )
 
-    seasons = [
-        ("DJF", "Austral Summer / Boreal Winter (Dec–Feb)", [12, 1, 2]),
-        ("MAM", "Transition Season (Mar–May)", [3, 4, 5]),
-        ("JJA", "Austral Dry / Boreal Summer (Jun–Aug)", [6, 7, 8]),
-        ("SON", "Late Dry / Spring Transition (Sep–Nov)", [9, 10, 11]),
-    ]
+    work = deseason_df.assign(season_year=season_year(deseason_df["year"], deseason_df["month"]))
     seasonal_rows = []
-    for s_code, s_label, m_list in seasons:
-        s_sub = deseason_df[deseason_df["month"].isin(m_list)]
-        if len(s_sub) < 15:
+    for code, months in SEASONS:
+        s_sub = work[work["month"].isin(months)]
+        s_ann = s_sub.groupby("season_year").agg(anomaly=("anomaly", "mean"), n=("anomaly", "count")).reset_index()
+        s_ann = s_ann[s_ann["n"] == len(months)].sort_values("season_year")
+        if len(s_ann) < 5:
             continue
-        s_ann = s_sub.groupby("year", as_index=False)["anomaly"].mean().sort_values("year")
-        mk_s = mann_kendall_hamed_rao(s_ann["year"].to_numpy(dtype=float), s_ann["anomaly"].to_numpy(dtype=float))
-        ols_s = ols_with_santer_correction(s_ann["year"].to_numpy(dtype=float), s_ann["anomaly"].to_numpy(dtype=float))
-        seasonal_rows.append({
-            "season": s_code,
-            "label": s_label,
-            "n_years": int(len(s_ann)),
-            "theil_sen_decade": round(mk_s["theil_sen_decade"], 4),
-            "ols_decade": round(ols_s["slope_decade"], 4),
-            "p_hamed_rao": round(mk_s["p_hamed_rao"], 5),
-            "significant": bool(mk_s["p_hamed_rao"] < 0.05),
-        })
+        years = s_ann["season_year"].to_numpy(dtype=float)
+        values = s_ann["anomaly"].to_numpy(dtype=float)
+        mk_s = mann_kendall_hamed_rao(years, values)
+        ols_s = ols_with_santer_correction(years, values)
+        seasonal_rows.append(
+            {
+                "season": code,
+                "n_years": int(len(s_ann)),
+                "theil_sen_decade": round(mk_s["theil_sen_decade"], 4),
+                "ols_decade": round(ols_s["slope_decade"], 4),
+                "p_hamed_rao": round(mk_s["p_hamed_rao"], 5),
+                "significant": bool(mk_s["p_hamed_rao"] < SIGNIFICANCE_ALPHA),
+            }
+        )
 
-    return {
-        "monthly_climatology": clim_rows,
-        "seasonal_trends": seasonal_rows,
-    }
+    return {"monthly_climatology": clim_rows, "seasonal_trends": seasonal_rows}
+
+
+# ---------------------------------------------------------------------------
+# Trend tests
+# ---------------------------------------------------------------------------
+def lag1_autocorrelation(values: np.ndarray) -> float:
+    """Pearson correlation between consecutive values (0 when undefined)."""
+    v = np.asarray(values, dtype=float)
+    if len(v) < 3 or np.std(v[:-1]) < 1e-12 or np.std(v[1:]) < 1e-12:
+        return 0.0
+    return float(np.corrcoef(v[:-1], v[1:])[0, 1])
 
 
 def ols_with_santer_correction(t_years: np.ndarray, y: np.ndarray) -> Dict[str, Any]:
     """
-    Parametric linear regression y(t) = beta_0 + beta_1 * t, with:
-      - Standard OLS t-test, ANOVA F-statistic (F = t^2), R^2, 95% confidence interval
-      - Santer et al. (2000) lag-1 autocorrelation correction:
-        n_eff = n * (1 - r_1) / (1 + r_1) when r_1 > 0.
+    Linear regression y(t) = b0 + b1 t with the naive t-test and the Santer et al. (2000)
+    correction n_eff = n (1 - r1) / (1 + r1), where r1 is the lag-1 autocorrelation of the residuals.
     """
     mask = np.isfinite(t_years) & np.isfinite(y)
     t = np.asarray(t_years[mask], dtype=float)
@@ -126,140 +151,71 @@ def ols_with_santer_correction(t_years: np.ndarray, y: np.ndarray) -> Dict[str, 
     n = len(v)
     if n < 5:
         return {
-            "n": n,
-            "slope_yr": 0.0,
-            "slope_decade": 0.0,
-            "intercept": 0.0,
-            "r_squared": 0.0,
-            "t_stat_naive": 0.0,
-            "f_stat_naive": 0.0,
-            "p_naive": 1.0,
-            "lag1_r": 0.0,
-            "n_eff": float(n),
-            "t_stat_santer": 0.0,
-            "f_stat_santer": 0.0,
-            "p_santer": 1.0,
-            "ci95_decade_low": 0.0,
-            "ci95_decade_high": 0.0,
-            "ci95_santer_decade_low": 0.0,
-            "ci95_santer_decade_high": 0.0,
+            "n": n, "slope_yr": 0.0, "slope_decade": 0.0, "intercept": 0.0, "r_squared": 0.0,
+            "p_naive": 1.0, "lag1_r": 0.0, "n_eff": float(n), "p_santer": 1.0,
+            "ci95_santer_decade_low": 0.0, "ci95_santer_decade_high": 0.0,
         }
 
     res = stats.linregress(t, v)
     slope = float(res.slope)
     intercept = float(res.intercept)
-    r_val = float(res.rvalue)
-    r_sq = float(r_val ** 2)
     se_naive = float(res.stderr) if res.stderr and res.stderr > 0 else 1e-12
-    t_naive = slope / se_naive
-    f_naive = float(t_naive ** 2)
-    p_naive = float(res.pvalue)
 
-    t_crit_naive = float(stats.t.ppf(0.975, df=max(1, n - 2)))
-    ci_low_naive = (slope - t_crit_naive * se_naive) * 10.0
-    ci_high_naive = (slope + t_crit_naive * se_naive) * 10.0
-
-    # Santer et al. (2000) lag-1 residual autocorrelation
-    residuals = v - (intercept + slope * t)
-    if np.std(residuals[:-1]) > 1e-12 and np.std(residuals[1:]) > 1e-12:
-        r1 = float(np.corrcoef(residuals[:-1], residuals[1:])[0, 1])
-    else:
-        r1 = 0.0
-
-    if r1 > 0.0:
-        n_eff = max(4.0, n * (1.0 - r1) / (1.0 + r1))
-    else:
-        n_eff = float(n)
-
+    r1 = lag1_autocorrelation(v - (intercept + slope * t))
+    n_eff = max(4.0, n * (1.0 - r1) / (1.0 + r1)) if r1 > 0.0 else float(n)
     df_eff = max(2.0, n_eff - 2.0)
     se_santer = se_naive * np.sqrt((n - 2.0) / df_eff)
-    t_santer = float(slope / se_santer) if se_santer > 0 else 0.0
-    f_santer = float(t_santer ** 2)
-    p_santer = float(2.0 * (1.0 - stats.t.cdf(abs(t_santer), df=df_eff)))
-
-    t_crit_santer = float(stats.t.ppf(0.975, df=df_eff))
-    ci_low_santer = (slope - t_crit_santer * se_santer) * 10.0
-    ci_high_santer = (slope + t_crit_santer * se_santer) * 10.0
+    t_santer = slope / se_santer if se_santer > 0 else 0.0
+    p_santer = float(2.0 * stats.t.sf(abs(t_santer), df=df_eff))
+    t_crit = float(stats.t.ppf(0.975, df=df_eff))
 
     return {
         "n": int(n),
         "slope_yr": slope,
         "slope_decade": slope * 10.0,
         "intercept": intercept,
-        "r_squared": r_sq,
-        "t_stat_naive": float(t_naive),
-        "f_stat_naive": f_naive,
-        "p_naive": p_naive,
+        "r_squared": float(res.rvalue ** 2),
+        "p_naive": float(res.pvalue),
         "lag1_r": r1,
         "n_eff": float(n_eff),
-        "t_stat_santer": t_santer,
-        "f_stat_santer": f_santer,
         "p_santer": p_santer,
-        "ci95_decade_low": float(ci_low_naive),
-        "ci95_decade_high": float(ci_high_naive),
-        "ci95_santer_decade_low": float(ci_low_santer),
-        "ci95_santer_decade_high": float(ci_high_santer),
+        "ci95_santer_decade_low": float((slope - t_crit * se_santer) * 10.0),
+        "ci95_santer_decade_high": float((slope + t_crit * se_santer) * 10.0),
     }
 
 
 def mann_kendall_hamed_rao(t_years: np.ndarray, y: np.ndarray) -> Dict[str, Any]:
-    """
-    Non-parametric Mann-Kendall trend test (both original and Hamed & Rao 1998
-    variance-corrected for serial autocorrelation) + Theil-Sen robust slope.
-    """
+    """Mann-Kendall test (original and Hamed & Rao 1998 variance-corrected) plus Theil-Sen slope."""
     mask = np.isfinite(t_years) & np.isfinite(y)
     t = np.asarray(t_years[mask], dtype=float)
     x = np.asarray(y[mask], dtype=float)
     n = len(x)
     if n < 5:
         return {
-            "n": n,
-            "s_stat": 0.0,
-            "tau": 0.0,
-            "z_original": 0.0,
-            "p_original": 1.0,
-            "variance_inflation_factor": 1.0,
-            "z_hamed_rao": 0.0,
-            "p_hamed_rao": 1.0,
-            "theil_sen_yr": 0.0,
-            "theil_sen_decade": 0.0,
-            "theil_sen_intercept": 0.0,
-            "theil_sen_ci_low_decade": 0.0,
-            "theil_sen_ci_high_decade": 0.0,
+            "n": n, "s_stat": 0.0, "tau": 0.0, "p_original": 1.0, "variance_inflation_factor": 1.0,
+            "p_hamed_rao": 1.0, "theil_sen_yr": 0.0, "theil_sen_decade": 0.0, "theil_sen_intercept": 0.0,
+            "theil_sen_ci_low_decade": 0.0, "theil_sen_ci_high_decade": 0.0,
         }
 
-    # Pairwise sign matrix
     diff = x[None, :] - x[:, None]
-    iu = np.triu_indices(n, k=1)
-    s_stat = float(np.sum(np.sign(diff[iu])))
+    s_stat = float(np.sum(np.sign(diff[np.triu_indices(n, k=1)])))
 
-    # Tie-corrected original variance Var_0(S)
     _, counts = np.unique(x, return_counts=True)
     tie_term = float(np.sum(counts * (counts - 1) * (2 * counts + 5)))
-    var_0 = (n * (n - 1) * (2 * n + 5) - tie_term) / 18.0
-    var_0 = max(var_0, 1e-12)
+    var_0 = max((n * (n - 1) * (2 * n + 5) - tie_term) / 18.0, 1e-12)
 
-    if s_stat > 0:
-        z_orig = (s_stat - 1.0) / np.sqrt(var_0)
-    elif s_stat < 0:
-        z_orig = (s_stat + 1.0) / np.sqrt(var_0)
-    else:
-        z_orig = 0.0
-    p_orig = float(2.0 * (1.0 - stats.norm.cdf(abs(z_orig))))
-    tau = float(s_stat / (0.5 * n * (n - 1)))
+    def _z(variance: float) -> float:
+        if s_stat > 0:
+            return (s_stat - 1.0) / np.sqrt(variance)
+        if s_stat < 0:
+            return (s_stat + 1.0) / np.sqrt(variance)
+        return 0.0
 
-    # Theil-Sen robust slope
     ts_res = stats.theilslopes(x, t, 0.95)
-    ts_slope_yr = float(ts_res.slope)
-    ts_intercept = float(ts_res.intercept)
-    ts_low_dec = float(ts_res.low_slope * 10.0)
-    ts_high_dec = float(ts_res.high_slope * 10.0)
 
-    # Hamed & Rao (1998) modified variance correction on detrended ranks across all lags k = 1..n-1
-    slope_idx = float(stats.theilslopes(x)[0])
-    detrended = x - slope_idx * np.arange(n, dtype=float)
-    ranks = stats.rankdata(detrended)
-    r_centered = ranks - np.mean(ranks)
+    # Hamed & Rao (1998): autocorrelation of the ranks of the detrended series, significant lags only.
+    detrended = x - float(stats.theilslopes(x)[0]) * np.arange(n, dtype=float)
+    r_centered = stats.rankdata(detrended) - (n + 1) / 2.0
     denom = float(np.sum(r_centered ** 2))
     crit = float(stats.norm.ppf(0.975) / np.sqrt(n))
     corr_sum = 0.0
@@ -268,152 +224,296 @@ def mann_kendall_hamed_rao(t_years: np.ndarray, y: np.ndarray) -> Dict[str, Any]
             rk = float(np.sum(r_centered[:-k] * r_centered[k:]) / denom)
             if abs(rk) > crit:
                 corr_sum += (n - k) * (n - k - 1) * (n - k - 2) * rk
+    vif = max(1.0, 1.0 + (2.0 / (n * (n - 1) * (n - 2))) * corr_sum)
 
-    vif = 1.0 + (2.0 / (n * (n - 1) * (n - 2))) * corr_sum
-    vif = max(1.0, float(vif))
-    var_star = var_0 * vif
-
-    if s_stat > 0:
-        z_hr = (s_stat - 1.0) / np.sqrt(var_star)
-    elif s_stat < 0:
-        z_hr = (s_stat + 1.0) / np.sqrt(var_star)
-    else:
-        z_hr = 0.0
-    p_hr = float(2.0 * (1.0 - stats.norm.cdf(abs(z_hr))))
-
+    z_orig = _z(var_0)
+    z_hr = _z(var_0 * vif)
     return {
         "n": int(n),
         "s_stat": s_stat,
-        "tau": tau,
-        "z_original": float(z_orig),
-        "p_original": p_orig,
-        "variance_inflation_factor": vif,
-        "z_hamed_rao": float(z_hr),
-        "p_hamed_rao": p_hr,
-        "theil_sen_yr": ts_slope_yr,
-        "theil_sen_decade": ts_slope_yr * 10.0,
-        "theil_sen_intercept": ts_intercept,
-        "theil_sen_ci_low_decade": ts_low_dec,
-        "theil_sen_ci_high_decade": ts_high_dec,
+        "tau": float(s_stat / (0.5 * n * (n - 1))),
+        "p_original": float(2.0 * stats.norm.sf(abs(z_orig))),
+        "variance_inflation_factor": float(vif),
+        "p_hamed_rao": float(2.0 * stats.norm.sf(abs(z_hr))),
+        "theil_sen_yr": float(ts_res.slope),
+        "theil_sen_decade": float(ts_res.slope) * 10.0,
+        "theil_sen_intercept": float(ts_res.intercept),
+        "theil_sen_ci_low_decade": float(ts_res.low_slope) * 10.0,
+        "theil_sen_ci_high_decade": float(ts_res.high_slope) * 10.0,
     }
 
 
-def pettitt_change_point_test(dates: List[str], y: np.ndarray) -> Dict[str, Any]:
+# ---------------------------------------------------------------------------
+# Change points and homogeneity
+# ---------------------------------------------------------------------------
+def bootstrap_block_length(values: np.ndarray) -> int:
     """
-    Pettitt (1979) non-parametric change-point test to detect abrupt regime shifts
-    or satellite sensor splices (e.g., Jan 2001 GEWEX SRB -> CERES splice).
+    Block length that keeps the serial memory of the series: (1 + r1) / (1 - r1), i.e. n / n_eff
+    from the Santer et al. (2000) formula, capped at a tenth of the series.
+    """
+    n = len(values)
+    r1 = lag1_autocorrelation(values)
+    length = 1 if r1 <= 0 else int(np.ceil((1.0 + r1) / max(1e-6, 1.0 - r1)))
+    return int(max(1, min(length, max(1, n // 10))))
+
+
+def _circular_block_bootstrap(values: np.ndarray, n_samples: int, rng: np.random.Generator) -> np.ndarray:
+    """Resamples whole blocks (wrapping around the end) to build series without a structural break."""
+    n = len(values)
+    block = bootstrap_block_length(values)
+    n_blocks = int(np.ceil(n / block))
+    starts = rng.integers(0, n, size=(n_samples, n_blocks))
+    idx = (starts[:, :, None] + np.arange(block)[None, None, :]) % n
+    return values[idx.reshape(n_samples, -1)[:, :n]]
+
+
+def _pettitt_statistic(values: np.ndarray) -> np.ndarray:
+    """|U_t| for every split t (works row-wise on a 2-D array)."""
+    arr = np.atleast_2d(values)
+    n = arr.shape[1]
+    ranks = stats.rankdata(arr, axis=1)
+    u_t = 2.0 * np.cumsum(ranks, axis=1)[:, :-1] - np.arange(1, n) * (n + 1.0)
+    return np.abs(u_t)
+
+
+def pettitt_change_point_test(
+    dates: Sequence[str],
+    y: np.ndarray,
+    n_boot: int = BOOTSTRAP_SAMPLES,
+    seed: int = BOOTSTRAP_SEED,
+) -> Dict[str, Any]:
+    """
+    Pettitt (1979) change point. The location and K statistic are the classical ones; the p-value
+    comes from a circular block bootstrap so that persistent series do not yield absurdly small p.
+    Pettitt cannot tell a step from a gradual trend: see compare_step_vs_trend for that question.
     """
     mask = np.isfinite(y)
-    v = np.asarray(y[mask], dtype=float)
+    v = np.asarray(y, dtype=float)[mask]
     valid_dates = [d for d, m in zip(dates, mask) if m]
     n = len(v)
-    if n < 12:
+    if n < 24:
         return {
-            "change_index": 0,
-            "change_date": valid_dates[0] if valid_dates else "N/A",
-            "k_stat": 0.0,
-            "p_value": 1.0,
-            "mean_before": 0.0,
-            "mean_after": 0.0,
-            "step_delta": 0.0,
-            "is_significant_breakpoint": False,
+            "change_index": 0, "change_date": valid_dates[0] if valid_dates else None, "k_stat": 0.0,
+            "p_value": 1.0, "p_value_asymptotic": 1.0, "block_length": 1, "n_bootstrap": 0,
+            "mean_before": 0.0, "mean_after": 0.0, "step_delta": 0.0, "is_significant_breakpoint": False,
         }
 
-    ranks = stats.rankdata(v)
-    cum_ranks = np.cumsum(ranks)
-    idx_arr = np.arange(1, n)
-    u_t = 2.0 * cum_ranks[:-1] - idx_arr * (n + 1.0)
-    abs_u = np.abs(u_t)
+    abs_u = _pettitt_statistic(v)[0]
     k_idx = int(np.argmax(abs_u))
     k_stat = float(abs_u[k_idx])
 
-    p_val = float(min(1.0, 2.0 * np.exp((-6.0 * (k_stat ** 2)) / (n ** 3 + n ** 2))))
-    mean_before = float(np.mean(v[: k_idx + 1]))
-    mean_after = float(np.mean(v[k_idx + 1 :]))
-    step_delta = mean_after - mean_before
+    rng = np.random.default_rng(seed)
+    boot_k = _pettitt_statistic(_circular_block_bootstrap(v, n_boot, rng)).max(axis=1)
+    p_boot = float((1 + np.sum(boot_k >= k_stat)) / (n_boot + 1))
+    p_asym = float(min(1.0, 2.0 * np.exp((-6.0 * k_stat ** 2) / (n ** 3 + n ** 2))))
 
+    mean_before = float(np.mean(v[: k_idx + 1]))
+    mean_after = float(np.mean(v[k_idx + 1:]))
     return {
         "change_index": k_idx,
         "change_date": valid_dates[k_idx],
         "k_stat": k_stat,
-        "p_value": p_val,
+        "p_value": p_boot,
+        "p_value_asymptotic": p_asym,
+        "block_length": bootstrap_block_length(v),
+        "n_bootstrap": int(n_boot),
         "mean_before": mean_before,
         "mean_after": mean_after,
-        "step_delta": step_delta,
-        "is_significant_breakpoint": bool(p_val < 0.01),
+        "step_delta": mean_after - mean_before,
+        "is_significant_breakpoint": bool(p_boot < SIGNIFICANCE_ALPHA),
     }
 
 
+def known_breakpoint_test(
+    dates: Sequence[str],
+    y: np.ndarray,
+    break_date: str,
+    n_boot: int = BOOTSTRAP_SAMPLES,
+    seed: int = BOOTSTRAP_SEED,
+) -> Optional[Dict[str, Any]]:
+    """
+    Tests a documented break (e.g. an instrument change) at a fixed date: difference of means
+    after minus before, with a circular block-bootstrap p-value. Returns None when the window
+    does not hold enough months on both sides of the date.
+    """
+    mask = np.isfinite(y)
+    v = np.asarray(y, dtype=float)[mask]
+    valid_dates = np.asarray([d for d, m in zip(dates, mask) if m])
+    after = valid_dates >= break_date
+    n_after = int(after.sum())
+    n_before = int(len(v) - n_after)
+    if min(n_after, n_before) < MIN_MONTHS_EACH_SIDE_OF_BREAK:
+        return None
+
+    delta = float(v[after].mean() - v[~after].mean())
+    rng = np.random.default_rng(seed)
+    boot = _circular_block_bootstrap(v, n_boot, rng)
+    boot_delta = boot[:, after].mean(axis=1) - boot[:, ~after].mean(axis=1)
+    p_boot = float((1 + np.sum(np.abs(boot_delta) >= abs(delta))) / (n_boot + 1))
+    return {
+        "break_date": break_date,
+        "n_before": n_before,
+        "n_after": n_after,
+        "mean_before": float(v[~after].mean()),
+        "mean_after": float(v[after].mean()),
+        "step_delta": delta,
+        "p_value": p_boot,
+        "is_significant": bool(p_boot < SIGNIFICANCE_ALPHA),
+    }
+
+
+def compare_step_vs_trend(t_years: np.ndarray, y: np.ndarray, change_index: int) -> Dict[str, Any]:
+    """
+    Compares a linear trend (2 parameters) with a single level shift at the Pettitt date
+    (3 parameters: two means and the break) using BIC. preferred_model is 'step' or 'trend'
+    when the BIC difference exceeds STEP_EVIDENCE_BIC, otherwise 'inconclusive'.
+    """
+    mask = np.isfinite(t_years) & np.isfinite(y)
+    t = np.asarray(t_years, dtype=float)[mask]
+    v = np.asarray(y, dtype=float)[mask]
+    n = len(v)
+    if n < 24 or not 0 <= change_index < n - 1:
+        return {"bic_trend": None, "bic_step": None, "delta_bic": 0.0, "preferred_model": "inconclusive"}
+
+    slope, intercept = np.polyfit(t, v, 1)
+    rss_trend = float(np.sum((v - (intercept + slope * t)) ** 2))
+    before, after = v[: change_index + 1], v[change_index + 1:]
+    rss_step = float(np.sum((before - before.mean()) ** 2) + np.sum((after - after.mean()) ** 2))
+
+    def _bic(rss: float, k: int) -> float:
+        return float(n * np.log(max(rss, 1e-12) / n) + k * np.log(n))
+
+    bic_trend, bic_step = _bic(rss_trend, 2), _bic(rss_step, 3)
+    delta = bic_trend - bic_step
+    if delta > STEP_EVIDENCE_BIC:
+        preferred = "step"
+    elif delta < -STEP_EVIDENCE_BIC:
+        preferred = "trend"
+    else:
+        preferred = "inconclusive"
+    return {"bic_trend": bic_trend, "bic_step": bic_step, "delta_bic": float(delta), "preferred_model": preferred}
+
+
+# ---------------------------------------------------------------------------
+# Correlations with autocorrelation-aware significance
+# ---------------------------------------------------------------------------
+def correlation_with_neff(x: np.ndarray, y: np.ndarray) -> Dict[str, float]:
+    """
+    Pearson correlation whose p-value uses the Bretherton et al. (1999) effective sample size
+    n_eff = n (1 - r1x r1y) / (1 + r1x r1y).
+    """
+    a = np.asarray(x, dtype=float)
+    b = np.asarray(y, dtype=float)
+    n = len(a)
+    if n < 12 or np.std(a) < 1e-12 or np.std(b) < 1e-12:
+        return {"r": 0.0, "p": 1.0, "n": n, "n_eff": float(n)}
+    r = float(np.corrcoef(a, b)[0, 1])
+    persistence = lag1_autocorrelation(a) * lag1_autocorrelation(b)
+    n_eff = float(np.clip(n * (1.0 - persistence) / (1.0 + persistence), 3.0, n))
+    dof = max(1.0, n_eff - 2.0)
+    t_stat = r * np.sqrt(dof / max(1e-12, 1.0 - r ** 2))
+    return {"r": r, "p": float(2.0 * stats.t.sf(abs(t_stat), df=dof)), "n": int(n), "n_eff": n_eff}
+
+
+def _month_index(year: pd.Series, month: pd.Series) -> np.ndarray:
+    return (year.astype(int) * 12 + month.astype(int) - 1).to_numpy()
+
+
+def enso_teleconnection(des: pd.DataFrame, oni_df: pd.DataFrame, max_lag: int = MAX_ENSO_LAG_MONTHS) -> Dict[str, Any]:
+    """
+    Correlates monthly anomalies with the NOAA ONI leading by 0..max_lag months. p-values use the
+    effective sample size; q-values control the false discovery rate across the tested lags.
+    """
+    empty = {"r_oni": 0.0, "p_oni": 1.0, "n_eff_oni": 0.0, "n_overlap": 0, "best_lag": 0, "r_best": 0.0,
+             "q_best": 1.0, "lags": []}
+    if oni_df is None or oni_df.empty or des.empty:
+        return empty
+
+    oni_by_month = pd.Series(oni_df["oni"].to_numpy(dtype=float), index=_month_index(oni_df["year"], oni_df["month"]))
+    target_idx = _month_index(des["year"], des["month"])
+    anomalies = des["anomaly"].to_numpy(dtype=float)
+
+    rows = []
+    for lag in range(max_lag + 1):
+        oni_values = oni_by_month.reindex(target_idx - lag).to_numpy()
+        ok = np.isfinite(oni_values) & np.isfinite(anomalies)
+        if ok.sum() < 24:
+            continue
+        corr = correlation_with_neff(anomalies[ok], oni_values[ok])
+        rows.append({"lag": lag, **corr})
+    if not rows:
+        return empty
+
+    for row, q in zip(rows, benjamini_hochberg_fdr([r["p"] for r in rows])):
+        row["q"] = q
+    lag0 = next((r for r in rows if r["lag"] == 0), rows[0])
+    best = max(rows, key=lambda r: abs(r["r"]))
+    return {
+        "r_oni": lag0["r"],
+        "p_oni": lag0["p"],
+        "n_eff_oni": lag0["n_eff"],
+        "n_overlap": lag0["n"],
+        "best_lag": best["lag"],
+        "r_best": best["r"],
+        "q_best": best["q"],
+        "lags": [{k: (round(v, 5) if isinstance(v, float) else v) for k, v in r.items()} for r in rows],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Verdicts and multiple testing
+# ---------------------------------------------------------------------------
 def classify_trend_verdict(
     slope_decade: float,
     p_hamed_rao: float,
     p_annual: float,
     p_santer: float = 0.0,
     lag1_r: float = 0.0,
-) -> Dict[str, str]:
+) -> Dict[str, Any]:
     """
-    Standardized scientific verdict using autocorrelation-corrected p-values.
-    When serial autocorrelation is extreme (lag1_r > 0.85), requires confirmation
-    from either Annual Anomaly Mann-Kendall (Acker Step 2) or Santer et al. (2000) OLS.
+    Verdict code from autocorrelation-corrected p-values. With extreme persistence (r1 > 0.85)
+    a trend must also be confirmed by Santer-corrected OLS or by the annual Mann-Kendall test.
+    Codes: sig_increase, sig_decrease, marginal_increase, marginal_decrease, not_significant,
+    autocorr_rejected.
     """
-    if lag1_r > 0.85 and p_santer > 0.10 and p_annual > 0.10:
-        return {
-            "verdict": "No Statistically Significant Trend (Autocorrelation-Inflated)",
-            "badge_color": "#64748b",
-            "confidence": f"Rejected False Positive (r₁={lag1_r:.2f}, p_Santer={p_santer:.3f}, p_Annual={p_annual:.3f})",
-        }
+    direction = "increase" if slope_decade > 0 else "decrease"
+    if lag1_r > 0.85 and p_santer > MARGINAL_ALPHA and p_annual > MARGINAL_ALPHA:
+        return {"code": "autocorr_rejected", "direction": direction, "is_significant": False}
+    if p_hamed_rao < SIGNIFICANCE_ALPHA:
+        return {"code": f"sig_{direction}", "direction": direction, "is_significant": True}
+    if p_hamed_rao < MARGINAL_ALPHA:
+        return {"code": f"marginal_{direction}", "direction": direction, "is_significant": False}
+    return {"code": "not_significant", "direction": direction, "is_significant": False}
 
-    p = p_hamed_rao
-    if p < 0.05:
-        if slope_decade > 0:
-            return {
-                "verdict": "Statistically Significant Increasing",
-                "badge_color": "#ef4444",
-                "confidence": "High Confidence (p_HR < 0.05)",
-            }
-        else:
-            return {
-                "verdict": "Statistically Significant Decreasing",
-                "badge_color": "#3b82f6",
-                "confidence": "High Confidence (p_HR < 0.05)",
-            }
-    elif p < 0.10:
-        direction = "Increasing" if slope_decade > 0 else "Decreasing"
-        return {
-            "verdict": f"Emerging / Marginal Trend ({direction})",
-            "badge_color": "#f59e0b",
-            "confidence": "Marginal (0.05 ≤ p_HR < 0.10, Acker et al. Criterion)",
-        }
-    else:
-        return {
-            "verdict": "No Statistically Significant Monotonic Trend",
-            "badge_color": "#64748b",
-            "confidence": "Not Significant After Autocorrelation Correction (p_HR ≥ 0.10)",
-        }
+
+def trend_warnings(verdict: Dict[str, Any], homogeneity: Dict[str, Any], known_break: Optional[Dict[str, Any]]) -> List[str]:
+    """Warning codes that qualify a verdict: step_dominated, known_splice_in_window."""
+    warnings = []
+    trend_claimed = verdict["code"].startswith(("sig_", "marginal_"))
+    if trend_claimed and homogeneity.get("preferred_model") == "step":
+        warnings.append("step_dominated")
+    if known_break is not None and known_break["is_significant"]:
+        warnings.append("known_splice_in_window")
+    return warnings
 
 
 def benjamini_hochberg_fdr(p_values: List[float]) -> List[float]:
-    """
-    Benjamini-Hochberg (1995) False Discovery Rate (FDR) adjusted q-values.
-    """
+    """Benjamini-Hochberg (1995) q-values, returned in the input order."""
     m = len(p_values)
     if m == 0:
         return []
     arr = np.asarray(p_values, dtype=float)
     order = np.argsort(arr)
-    ranked = arr[order]
-    q_ranked = np.empty(m, dtype=float)
-    prev = 1.0
-    for i in range(m - 1, -1, -1):
-        rank = i + 1
-        q_val = min(prev, ranked[i] * m / rank)
-        q_ranked[i] = q_val
-        prev = q_val
+    ranked = arr[order] * m / np.arange(1, m + 1)
+    q_ranked = np.minimum.accumulate(ranked[::-1])[::-1]
     q_out = np.empty(m, dtype=float)
-    q_out[order] = q_ranked
+    q_out[order] = np.minimum(q_ranked, 1.0)
     return [float(x) for x in q_out]
 
 
+# ---------------------------------------------------------------------------
+# Pipelines
+# ---------------------------------------------------------------------------
 def analyze_single_variable(
     df: pd.DataFrame,
     variable: str,
@@ -421,22 +521,19 @@ def analyze_single_variable(
     start_year: Optional[int] = None,
     end_year: Optional[int] = None,
     exclude_dates: Optional[List[str]] = None,
+    known_break_date: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """
-    Runs the complete Acker et al. (2009) + Hamed-Rao (1998) + Santer et al. (2000) + Pettitt (1979)
-    pipeline on a single Earth system variable.
-    """
-    work = df.copy()
+    """Full trend, change-point, homogeneity and ENSO pipeline for one variable."""
+    work = df
     if start_year is not None:
         work = work[work["year"] >= int(start_year)]
     if end_year is not None:
         work = work[work["year"] <= int(end_year)]
     if exclude_dates:
-        excl_set = set(exclude_dates)
-        work = work[~work["date"].isin(excl_set)]
+        work = work[~work["date"].isin(set(exclude_dates))]
 
     des = deseasonalize_acker(work, variable)
-    ann = compute_annual_anomalies(des)
+    ann = compute_annual_anomalies(des, variable)
 
     t_m = des["decimal_year"].to_numpy()
     a_m = des["anomaly"].to_numpy()
@@ -445,38 +542,18 @@ def analyze_single_variable(
     ols_m = ols_with_santer_correction(t_m, a_m)
     mk_m = mann_kendall_hamed_rao(t_m, a_m)
     pettitt_m = pettitt_change_point_test(dates_m, a_m)
+    homogeneity = compare_step_vs_trend(t_m, a_m, pettitt_m["change_index"])
+    known_break = known_breakpoint_test(dates_m, a_m, known_break_date) if known_break_date else None
 
-    # Annual anomaly trend (Acker Step 2)
     t_y = ann["year"].to_numpy(dtype=float)
     a_y = ann["annual_anomaly"].to_numpy(dtype=float)
     ols_y = ols_with_santer_correction(t_y, a_y)
     mk_y = mann_kendall_hamed_rao(t_y, a_y)
 
-    # ENSO (NOAA ONI) correlation if provided
-    enso_corr = {"r_oni": 0.0, "p_oni": 1.0, "spearman_oni": 0.0, "n_overlap": 0}
-    if oni_df is not None and not oni_df.empty:
-        merged_oni = des.merge(oni_df[["year", "month", "oni"]], on=["year", "month"], how="inner").dropna(
-            subset=["anomaly", "oni"]
-        )
-        if len(merged_oni) >= 12:
-            r_p, p_p = stats.pearsonr(merged_oni["anomaly"], merged_oni["oni"])
-            r_s, _ = stats.spearmanr(merged_oni["anomaly"], merged_oni["oni"])
-            enso_corr = {
-                "r_oni": float(r_p),
-                "p_oni": float(p_p),
-                "spearman_oni": float(r_s),
-                "n_overlap": int(len(merged_oni)),
-            }
-
     verdict = classify_trend_verdict(
-        mk_m["theil_sen_decade"],
-        mk_m["p_hamed_rao"],
-        mk_y["p_original"],
-        p_santer=ols_m["p_santer"],
-        lag1_r=ols_m["lag1_r"],
+        mk_m["theil_sen_decade"], mk_m["p_hamed_rao"], mk_y["p_original"],
+        p_santer=ols_m["p_santer"], lag1_r=ols_m["lag1_r"],
     )
-
-    clim_seasonal = compute_climatology_and_seasonal_trends(des, variable)
 
     return {
         "variable": variable,
@@ -489,13 +566,33 @@ def analyze_single_variable(
         "annual_ols": ols_y,
         "annual_mk": mk_y,
         "pettitt": pettitt_m,
-        "enso": enso_corr,
+        "homogeneity": homogeneity,
+        "known_break": known_break,
+        "enso": enso_teleconnection(des, oni_df),
         "verdict": verdict,
-        "monthly_climatology": clim_seasonal["monthly_climatology"],
-        "seasonal_trends": clim_seasonal["seasonal_trends"],
+        "warnings": trend_warnings(verdict, homogeneity, known_break),
+        **compute_climatology_and_seasonal_trends(des),
         "monthly_series": des,
         "annual_series": ann,
     }
+
+
+def trend_relation(res_a: Dict[str, Any], res_b: Dict[str, Any]) -> str:
+    """'opposite' or 'same_direction' when both trends are significant, else 'not_both_significant'."""
+    if not (res_a["verdict"]["is_significant"] and res_b["verdict"]["is_significant"]):
+        return "not_both_significant"
+    same = res_a["verdict"]["direction"] == res_b["verdict"]["direction"]
+    return "same_direction" if same else "opposite"
+
+
+def enso_relation(enso_a: Dict[str, Any], enso_b: Dict[str, Any]) -> str:
+    """
+    'opposite' or 'same_sign' when both regions correlate with ENSO at their strongest lag
+    (q < 0.05 across lags), else 'not_both_significant'.
+    """
+    if enso_a["q_best"] >= SIGNIFICANCE_ALPHA or enso_b["q_best"] >= SIGNIFICANCE_ALPHA:
+        return "not_both_significant"
+    return "opposite" if enso_a["r_best"] * enso_b["r_best"] < 0 else "same_sign"
 
 
 def compare_regional_dipole(
@@ -506,52 +603,30 @@ def compare_regional_dipole(
     start_year: int = 1981,
     end_year: int = 2025,
 ) -> Dict[str, Any]:
-    """
-    Compares two regions for opposite secular trends or opposite teleconnection polarity (ENSO dipole).
-    """
+    """Compares two regions: anomaly cross-correlation, ENSO polarity and trend directions."""
     res_a = analyze_single_variable(df_a, variable, oni_df=oni_df, start_year=start_year, end_year=end_year)
     res_b = analyze_single_variable(df_b, variable, oni_df=oni_df, start_year=start_year, end_year=end_year)
 
-    ser_a = res_a["monthly_series"][["date", "year", "month", "decimal_year", "anomaly", "z_score"]].rename(
+    ser_a = res_a["monthly_series"][["date", "year", "month", "anomaly", "z_score"]].rename(
         columns={"anomaly": "anom_a", "z_score": "z_a"}
     )
-    ser_b = res_b["monthly_series"][["date", "anomaly", "z_score"]].rename(
-        columns={"anomaly": "anom_b", "z_score": "z_b"}
-    )
+    ser_b = res_b["monthly_series"][["date", "anomaly", "z_score"]].rename(columns={"anomaly": "anom_b", "z_score": "z_b"})
     merged = ser_a.merge(ser_b, on="date", how="inner").dropna()
     if oni_df is not None and not oni_df.empty:
         merged = merged.merge(oni_df[["year", "month", "oni"]], on=["year", "month"], how="left")
 
-    if len(merged) >= 12:
-        r_ab, p_ab = stats.pearsonr(merged["anom_a"], merged["anom_b"])
-        rho_ab, p_rho_ab = stats.spearmanr(merged["anom_a"], merged["anom_b"])
-    else:
-        r_ab, p_ab, rho_ab, p_rho_ab = 0.0, 1.0, 0.0, 1.0
-
-    # Filter strong ENSO events (|ONI| >= 1.0) correlation if ONI available
-    r_enso_active = 0.0
-    p_enso_active = 1.0
-    if "oni" in merged.columns:
-        strong = merged[merged["oni"].abs() >= 1.0].dropna()
-        if len(strong) >= 8:
-            r_enso_active, p_enso_active = stats.pearsonr(strong["z_a"], strong["z_b"])
-
-    slope_a = res_a["monthly_mk"]["theil_sen_decade"]
-    slope_b = res_b["monthly_mk"]["theil_sen_decade"]
-    opposite_secular = bool((slope_a * slope_b) < 0)
-    opposite_oni = bool((res_a["enso"]["r_oni"] * res_b["enso"]["r_oni"]) < -0.02)
+    cross = correlation_with_neff(merged["anom_a"].to_numpy(), merged["anom_b"].to_numpy())
+    strong = merged[merged["oni"].abs() >= 1.0].dropna() if "oni" in merged.columns else merged.iloc[0:0]
+    r_strong = float(np.corrcoef(strong["z_a"], strong["z_b"])[0, 1]) if len(strong) >= 12 else None
 
     return {
         "variable": variable,
         "region_a": res_a,
         "region_b": res_b,
-        "pearson_r": float(r_ab),
-        "pearson_p": float(p_ab),
-        "spearman_rho": float(rho_ab),
-        "spearman_p": float(p_rho_ab),
-        "r_during_strong_enso": float(r_enso_active),
-        "p_during_strong_enso": float(p_enso_active),
-        "has_opposite_secular_slopes": opposite_secular,
-        "has_opposite_enso_teleconnection": opposite_oni,
+        "cross_correlation": cross,
+        "r_during_strong_enso": r_strong,
+        "n_strong_enso_months": int(len(strong)),
+        "trend_relation": trend_relation(res_a, res_b),
+        "enso_relation": enso_relation(res_a["enso"], res_b["enso"]),
         "merged_series": merged,
     }

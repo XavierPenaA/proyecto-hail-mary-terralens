@@ -1,590 +1,398 @@
 """
-TerraLens v2.1 Pro Machine Learning & Explainability Engine.
-STRICT ZERO-HALLUCINATION POLICY (Rule #0): 100% Real Data, Deterministic Seeds.
+TerraLens machine learning engine (runs at request time on one region's monthly anomalies).
 
-Implements:
-1. 3-Model Unsupervised Multivariate Anomaly Ensemble:
-   - Isolation Forest (Tree-based space partitioning)
-   - Local Outlier Factor / LOF (Local phase-space density deviation)
-   - Covariance-Adjusted Mahalanobis Distance (Elliptical multivariate distance)
-   -> Produces a 0–100 Consensus Anomaly Score and 3-Model Agreement Vote (0/3 to 3/3).
-2. Quantitative Variable Attribution (±σ, % Contribution, Earth Sphere) + Plain-English
-   Human Explainer for every detected anomaly event.
-3. PCA (2D Phase-Space Projection) + KMeans Environmental Regime Clustering (with human-readable regime cards).
-4. Supervised Lagged Teleconnection & Drought Driver ML (RandomForestRegressor + TimeSeries R²):
-   - Discovers which lagged drivers (NOAA ONI at lags 0, 1, 3, 6 months + Precipitation/Temp lags)
-     drive Root-Zone Soil Moisture (GWETROOT) in each region.
-5. Acker et al. (2009, NASA GES DISC) ML Outlier Exclusion Experiment:
-   - Compares trend slopes and autocorrelation-corrected p-values BEFORE vs. AFTER removing
-     ML-consensus extreme months.
+1. Unsupervised anomaly consensus: Isolation Forest, Local Outlier Factor and Mahalanobis
+   distance, each with a data-driven threshold. A month is anomalous when at least two
+   detectors agree, so a stable climate can legitimately have very few anomalies.
+2. Per-anomaly attribution in standardized units (sigma) and a neutral event code.
+3. PCA projection and K-Means regimes, with k chosen by silhouette score.
+4. Random Forest attribution of root-zone soil moisture anomalies to concurrent and lagged
+   drivers, reported with out-of-sample R2 next to a persistence baseline.
+5. Outlier sensitivity experiment (Acker et al., 2009): trends with and without the anomalous months.
+
+All outputs are numbers or stable codes; labels live in the frontend locales.
 """
 
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Sequence
+
 import numpy as np
 import pandas as pd
 from scipy import stats
-from sklearn.ensemble import IsolationForest, RandomForestRegressor
-from sklearn.neighbors import LocalOutlierFactor
-from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
+from sklearn.ensemble import IsolationForest, RandomForestRegressor
+from sklearn.metrics import r2_score, silhouette_score
 from sklearn.model_selection import TimeSeriesSplit
-from sklearn.metrics import r2_score
+from sklearn.neighbors import LocalOutlierFactor
 
-from core.catalog import VARIABLES
-from core.stats_engine import deseasonalize_acker, analyze_single_variable
+from core.stats_engine import deseasonalize_acker
 
 DEFAULT_ML_VARS = ["T2M", "PRECTOTCORR", "GWETROOT", "GWETTOP", "ALLSKY_SFC_SW_DWN", "RH2M"]
+MOISTURE_VARS = ["PRECTOTCORR", "GWETROOT", "RH2M"]
+VOTES_REQUIRED = 2
+MAHALANOBIS_ALPHA = 0.01
+CLUSTER_K_CANDIDATES = (2, 3, 4)
+RANDOM_STATE = 42
+CV_SPLITS = 5
 
 
-def _normalize_0_100(arr: np.ndarray) -> np.ndarray:
-    a = np.asarray(arr, dtype=float)
-    lo, hi = float(np.min(a)), float(np.max(a))
-    if hi - lo < 1e-12:
-        return np.zeros_like(a)
-    return 100.0 * (a - lo) / (hi - lo)
-
-
-def _compute_mahalanobis_scores(X: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
-    """
-    Computes regularized multivariate Mahalanobis distance D_M(z) = sqrt((z - mu)^T Sigma^-1 (z - mu))
-    and flags the top 5% (or chi-square p < 0.01) as multivariate covariance outliers.
-    """
-    n, d = X.shape
-    mu = np.mean(X, axis=0)
-    centered = X - mu
-    cov = np.cov(centered, rowvar=False) + np.eye(d) * 1e-4
-    inv_cov = np.linalg.pinv(cov)
-    md_sq = np.sum((centered @ inv_cov) * centered, axis=1)
-    md = np.sqrt(np.maximum(0.0, md_sq))
-    # Chi-square threshold with d degrees of freedom (95th percentile / top 5%)
-    thresh = float(np.percentile(md, 95.0))
-    is_out = md >= thresh
-    return md, is_out
-
-
-def _build_plain_english_event_summary(row: pd.Series, drivers: List[Dict[str, Any]]) -> str:
-    """
-    Generates a clear, deterministic, plain-English physical explanation of a multivariate anomaly
-    based strictly on its measured Z-scores (±σ) and NOAA ONI value.
-    """
-    z_t = float(row.get("Z_T2M", 0.0))
-    z_p = float(row.get("Z_PRECTOTCORR", 0.0))
-    z_gr = float(row.get("Z_GWETROOT", 0.0))
-    z_gt = float(row.get("Z_GWETTOP", 0.0))
-    z_rh = float(row.get("Z_RH2M", 0.0))
-    oni = float(row.get("oni", np.nan))
-
-    oni_tag = ""
-    if np.isfinite(oni):
-        if oni >= 1.5:
-            oni_tag = f" Co-occurred with a Strong El Niño phase (ONI = {oni:+.2f}°C)."
-        elif oni >= 0.5:
-            oni_tag = f" Co-occurred with an El Niño warm phase (ONI = {oni:+.2f}°C)."
-        elif oni <= -1.0:
-            oni_tag = f" Co-occurred with a Strong La Niña cold phase (ONI = {oni:+.2f}°C)."
-        elif oni <= -0.5:
-            oni_tag = f" Co-occurred with a La Niña phase (ONI = {oni:+.2f}°C)."
-
-    top1 = drivers[0]
-    top2 = drivers[1] if len(drivers) > 1 else drivers[0]
-
-    if z_p >= 2.0 and z_t >= 1.0:
-        headline = "Compound Warm-Wet Deluge Anomaly: Extreme rainfall surge combined with elevated air temperatures."
-    elif z_p >= 2.0:
-        headline = "Extreme Pluvial / Flood Pulse: Intense positive precipitation and soil saturation anomaly."
-    elif z_t >= 1.5 and (z_gr <= -1.2 or z_gt <= -1.2 or z_rh <= -1.5):
-        headline = "Compound Heat-Drought Stress: High atmospheric heat coincided with severe soil moisture and humidity deficit."
-    elif z_gr <= -1.5 or z_gt <= -1.5 or z_p <= -1.5:
-        headline = "Hydroclimatic Drought Deficit: Pronounced below-normal water availability across soil and atmosphere."
-    elif z_t <= -1.8:
-        headline = "Cold Atmospheric Anomaly: Unusual negative temperature excursion below monthly climatology."
-    else:
-        headline = "Multivariate Regime Departure: Unusual combination of atmospheric and land-surface variables."
-
-    detail = (
-        f" Primary driver was {VARIABLES[top1['variable']]['short_name']} ({top1['z_sigma']:+.2f}σ, "
-        f"{top1['contribution_pct']:.0f}% of total anomaly magnitude), followed by "
-        f"{VARIABLES[top2['variable']]['short_name']} ({top2['z_sigma']:+.2f}σ, {top2['contribution_pct']:.0f}%)."
-    )
-    return headline + detail + oni_tag
-
-
+# ---------------------------------------------------------------------------
+# Feature matrix
+# ---------------------------------------------------------------------------
 def build_multivariate_z_matrix(
     df: pd.DataFrame,
-    variables: Optional[List[str]] = None,
+    variables: Optional[Sequence[str]] = None,
     oni_df: Optional[pd.DataFrame] = None,
     start_year: int = 1984,
     end_year: int = 2025,
 ) -> pd.DataFrame:
-    """
-    Constructs a clean monthly multivariate table of standardized anomalies Z_{y,m}
-    and raw deseasonalized anomalies A_{y,m}.
-    """
+    """Monthly table of standardized (Z_*) and absolute (A_*) anomalies for every variable."""
     vars_use = [v for v in (variables or DEFAULT_ML_VARS) if v in df.columns]
-    work = df[(df["year"] >= start_year) & (df["year"] <= end_year)].copy()
+    work = df[(df["year"] >= start_year) & (df["year"] <= end_year)]
 
     base = work[["date", "year", "month", "decimal_year"]].drop_duplicates().sort_values(["year", "month"])
     for v in vars_use:
         des = deseasonalize_acker(work, v)
         base = base.merge(
             des[["date", "z_score", "anomaly", v, "clim_mean"]].rename(
-                columns={
-                    "z_score": f"Z_{v}",
-                    "anomaly": f"A_{v}",
-                    v: f"RAW_{v}",
-                    "clim_mean": f"CLIM_{v}",
-                }
+                columns={"z_score": f"Z_{v}", "anomaly": f"A_{v}", v: f"RAW_{v}", "clim_mean": f"CLIM_{v}"}
             ),
             on="date",
             how="inner",
         )
     if oni_df is not None and not oni_df.empty:
         base = base.merge(oni_df[["year", "month", "oni"]], on=["year", "month"], how="left")
+    return base.dropna(subset=[f"Z_{v}" for v in vars_use]).reset_index(drop=True)
 
-    z_cols = [f"Z_{v}" for v in vars_use]
-    base = base.dropna(subset=z_cols).reset_index(drop=True)
-    return base
+
+# ---------------------------------------------------------------------------
+# Detectors
+# ---------------------------------------------------------------------------
+def _percentile_rank(values: np.ndarray) -> np.ndarray:
+    """0-100 rank of each value within its own array (higher = more anomalous)."""
+    return 100.0 * (stats.rankdata(values) - 1) / max(1, len(values) - 1)
+
+
+def mahalanobis_outliers(X: np.ndarray, alpha: float = MAHALANOBIS_ALPHA) -> Dict[str, np.ndarray]:
+    """Squared Mahalanobis distance against the chi-square(d) quantile 1 - alpha."""
+    d = X.shape[1]
+    centered = X - X.mean(axis=0)
+    inv_cov = np.linalg.pinv(np.cov(centered, rowvar=False) + np.eye(d) * 1e-6)
+    md_sq = np.einsum("ij,jk,ik->i", centered, inv_cov, centered)
+    threshold = float(stats.chi2.ppf(1.0 - alpha, df=d))
+    return {"distance": np.sqrt(np.maximum(md_sq, 0.0)), "flags": md_sq > threshold}
+
+
+def run_anomaly_detectors(X: np.ndarray) -> Dict[str, np.ndarray]:
+    """Runs the three detectors with their own data-driven thresholds."""
+    iso = IsolationForest(n_estimators=300, contamination="auto", random_state=RANDOM_STATE)
+    iso_flags = iso.fit_predict(X) == -1
+    iso_raw = -iso.score_samples(X)
+
+    lof = LocalOutlierFactor(n_neighbors=min(24, max(5, len(X) // 15)), contamination="auto")
+    lof_flags = lof.fit_predict(X) == -1
+    lof_raw = -lof.negative_outlier_factor_
+
+    md = mahalanobis_outliers(X)
+    votes = iso_flags.astype(int) + lof_flags.astype(int) + md["flags"].astype(int)
+    consensus_score = (_percentile_rank(iso_raw) + _percentile_rank(lof_raw) + _percentile_rank(md["distance"])) / 3.0
+    return {
+        "iso_flags": iso_flags,
+        "lof_flags": lof_flags,
+        "mahalanobis_flags": md["flags"],
+        "mahalanobis_distance": md["distance"],
+        "votes": votes,
+        "consensus_score": consensus_score,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Neutral codes
+# ---------------------------------------------------------------------------
+def classify_event(z: Dict[str, float]) -> str:
+    """Event code from standardized anomalies (no physical cause is implied)."""
+    z_t, z_p = z.get("T2M", 0.0), z.get("PRECTOTCORR", 0.0)
+    z_gr, z_gt, z_rh = z.get("GWETROOT", 0.0), z.get("GWETTOP", 0.0), z.get("RH2M", 0.0)
+    if z_p >= 2.0 and z_t >= 1.0:
+        return "warm_wet"
+    if z_p >= 2.0:
+        return "wet_extreme"
+    if z_t >= 1.5 and (z_gr <= -1.2 or z_gt <= -1.2 or z_rh <= -1.5):
+        return "hot_dry"
+    if z_gr <= -1.5 or z_gt <= -1.5 or z_p <= -1.5:
+        return "dry_extreme"
+    if z_t <= -1.8:
+        return "cold_extreme"
+    return "multivariate"
+
+
+def oni_phase(oni: Optional[float]) -> Optional[str]:
+    """NOAA ENSO phase thresholds (strong events at |ONI| >= 1.5)."""
+    if oni is None or not np.isfinite(oni):
+        return None
+    if oni >= 1.5:
+        return "strong_el_nino"
+    if oni >= 0.5:
+        return "el_nino"
+    if oni <= -1.5:
+        return "strong_la_nina"
+    if oni <= -0.5:
+        return "la_nina"
+    return "neutral"
+
+
+def regime_code(mean_t: float, mean_moisture: float) -> str:
+    """Regime code from a cluster's mean temperature and moisture anomalies (sigma)."""
+    if mean_t > 0.3 and mean_moisture < -0.15:
+        return "warm_dry"
+    if mean_moisture > 0.3:
+        return "wet"
+    if mean_moisture < -0.3:
+        return "dry"
+    if mean_t > 0.3:
+        return "warm"
+    if mean_t < -0.3:
+        return "cool"
+    return "near_normal"
+
+
+# ---------------------------------------------------------------------------
+# Regimes
+# ---------------------------------------------------------------------------
+def select_regimes(X: np.ndarray, z_df: pd.DataFrame, vars_use: List[str]) -> Dict[str, Any]:
+    """K-Means with k chosen by silhouette score among CLUSTER_K_CANDIDATES."""
+    silhouettes, labels_by_k = {}, {}
+    for k in CLUSTER_K_CANDIDATES:
+        labels = KMeans(n_clusters=k, n_init=10, random_state=RANDOM_STATE).fit_predict(X)
+        silhouettes[k] = float(silhouette_score(X, labels))
+        labels_by_k[k] = labels
+    best_k = max(silhouettes, key=silhouettes.get)
+    labels = labels_by_k[best_k]
+
+    moisture_cols = [f"Z_{v}" for v in MOISTURE_VARS if v in vars_use]
+    clusters = []
+    for cid in range(best_k):
+        members = z_df[labels == cid]
+        mean_t = float(members["Z_T2M"].mean()) if "Z_T2M" in members else 0.0
+        mean_moisture = float(members[moisture_cols].mean().mean()) if moisture_cols else 0.0
+        clusters.append(
+            {
+                "cluster_id": cid,
+                "regime_code": regime_code(mean_t, mean_moisture),
+                "count_months": int(len(members)),
+                "share_pct": round(100.0 * len(members) / len(z_df), 1),
+                "mean_z": {v: round(float(members[f"Z_{v}"].mean()), 2) for v in vars_use},
+            }
+        )
+    return {
+        "k": int(best_k),
+        "silhouette_by_k": {str(k): round(s, 4) for k, s in silhouettes.items()},
+        "clusters": clusters,
+        "labels": labels,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Main entry point
+# ---------------------------------------------------------------------------
+def _attribution(row: pd.Series, vars_use: List[str]) -> List[Dict[str, Any]]:
+    abs_z = {v: abs(float(row[f"Z_{v}"])) for v in vars_use}
+    total = sum(abs_z.values()) + 1e-12
+
+    def _rounded(value: Any, digits: int) -> Optional[float]:
+        value = float(value)
+        return round(value, digits) if np.isfinite(value) else None
+
+    return [
+        {
+            "variable": v,
+            "raw_value": _rounded(row.get(f"RAW_{v}", np.nan), 3),
+            "normal_value": _rounded(row.get(f"CLIM_{v}", np.nan), 3),
+            "anomaly_value": _rounded(row.get(f"A_{v}", np.nan), 3),
+            "z_sigma": round(float(row[f"Z_{v}"]), 2),
+            "contribution_pct": round(100.0 * abs_z[v] / total, 1),
+        }
+        for v in sorted(vars_use, key=lambda name: abs_z[name], reverse=True)
+    ]
 
 
 def run_multivariate_anomaly_detective(
     df: pd.DataFrame,
-    variables: Optional[List[str]] = None,
+    variables: Optional[Sequence[str]] = None,
     oni_df: Optional[pd.DataFrame] = None,
-    contamination: float = 0.05,
     start_year: int = 1984,
     end_year: int = 2025,
 ) -> Dict[str, Any]:
-    """
-    Runs the 3-Model Unsupervised Anomaly Ensemble (Isolation Forest + LOF + Mahalanobis),
-    PCA 2D projection, KMeans regime clustering, Lagged Teleconnection Random Forest,
-    and Quantitative ±σ Explainability.
-    """
+    """Anomaly consensus, attribution, PCA, regimes and the soil-moisture driver model."""
     vars_use = [v for v in (variables or DEFAULT_ML_VARS) if v in df.columns]
     z_df = build_multivariate_z_matrix(df, vars_use, oni_df=oni_df, start_year=start_year, end_year=end_year)
     z_cols = [f"Z_{v}" for v in vars_use]
-
-    if len(z_df) < 24 or len(z_cols) < 2:
+    if len(z_df) < 60 or len(z_cols) < 2:
         return {
-            "variables": vars_use,
-            "matrix": z_df,
-            "anomalies": [],
-            "extreme_dates": [],
-            "pca_variance_ratio": [0.0, 0.0],
-            "pca_loadings": {},
-            "cluster_summary": [],
-            "lagged_driver_model": {},
+            "variables": vars_use, "matrix": z_df, "n_months": int(len(z_df)), "anomalies": [],
+            "extreme_dates": [], "pca": {"variance_ratio": [0.0, 0.0], "loadings": {}},
+            "regimes": {"k": 0, "silhouette_by_k": {}, "clusters": []}, "lagged_driver_model": {"available": False},
         }
 
     X = z_df[z_cols].to_numpy(dtype=float)
+    det = run_anomaly_detectors(X)
+    z_df = z_df.assign(
+        iso_flag=det["iso_flags"],
+        lof_flag=det["lof_flags"],
+        mahalanobis_flag=det["mahalanobis_flags"],
+        mahalanobis_dist=np.round(det["mahalanobis_distance"], 2),
+        model_votes=det["votes"],
+        consensus_score_pct=np.round(det["consensus_score"], 1),
+        is_anomaly=det["votes"] >= VOTES_REQUIRED,
+    )
 
-    # -------------------------------------------------------------------------
-    # 1. 3-MODEL UNSUPERVISED MULTIVARIATE ANOMALY ENSEMBLE
-    # -------------------------------------------------------------------------
-    # Model A: Isolation Forest
-    iso = IsolationForest(n_estimators=200, contamination=contamination, random_state=42)
-    iso_pred = iso.fit_predict(X) == -1
-    iso_raw = -iso.decision_function(X)
-    iso_score = _normalize_0_100(iso_raw)
+    pca = PCA(n_components=2, random_state=RANDOM_STATE)
+    coords = pca.fit_transform(X)
+    regimes = select_regimes(X, z_df, vars_use)
+    z_df = z_df.assign(pca_1=np.round(coords[:, 0], 3), pca_2=np.round(coords[:, 1], 3), cluster_id=regimes.pop("labels"))
 
-    # Model B: Local Outlier Factor (LOF)
-    n_neighbors = min(20, max(5, len(X) // 15))
-    lof = LocalOutlierFactor(n_neighbors=n_neighbors, contamination=contamination)
-    lof_pred = lof.fit_predict(X) == -1
-    lof_raw = -lof.negative_outlier_factor_
-    lof_score = _normalize_0_100(lof_raw)
-
-    # Model C: Covariance-Regularized Mahalanobis Distance
-    md_raw, md_pred = _compute_mahalanobis_scores(X)
-    md_score = _normalize_0_100(md_raw)
-
-    # Ensemble Consensus Score (0-100) and Model Agreement Count (0..3)
-    consensus_score = 0.40 * iso_score + 0.30 * lof_score + 0.30 * md_score
-    votes = iso_pred.astype(int) + lof_pred.astype(int) + md_pred.astype(int)
-
-    # Consensus anomaly: either >=2 models flag it OR top 5% consensus score
-    score_cutoff = float(np.percentile(consensus_score, 100.0 * (1.0 - contamination)))
-    is_consensus_anomaly = (votes >= 2) | (consensus_score >= score_cutoff)
-
-    z_df["iso_flag"] = iso_pred
-    z_df["lof_flag"] = lof_pred
-    z_df["mahalanobis_flag"] = md_pred
-    z_df["mahalanobis_dist"] = np.round(md_raw, 2)
-    z_df["model_votes"] = votes
-    z_df["is_anomaly"] = is_consensus_anomaly
-    z_df["anomaly_score"] = np.round(consensus_score / 100.0, 3)
-    z_df["consensus_score_pct"] = np.round(consensus_score, 1)
-    z_df["max_abs_sigma"] = np.round(np.max(np.abs(X), axis=1), 2)
-    z_df["compound_l2_sigma"] = np.round(np.sqrt(np.mean(X ** 2, axis=1)), 2)
-
-    # -------------------------------------------------------------------------
-    # 2. PCA (2D Phase Space + Feature Loadings)
-    # -------------------------------------------------------------------------
-    pca = PCA(n_components=2, random_state=42)
-    coords_pca = pca.fit_transform(X)
-    z_df["pca_1"] = np.round(coords_pca[:, 0], 3)
-    z_df["pca_2"] = np.round(coords_pca[:, 1], 3)
-    var_ratio = [float(x) for x in pca.explained_variance_ratio_]
-    pca_loadings = {
-        v: {
-            "PC1_loading": round(float(pca.components_[0, i]), 3),
-            "PC2_loading": round(float(pca.components_[1, i]), 3),
-        }
-        for i, v in enumerate(vars_use)
-    }
-
-    # -------------------------------------------------------------------------
-    # 3. KMeans Clustering into 3 Interpretable Environmental Regimes
-    # -------------------------------------------------------------------------
-    km = KMeans(n_clusters=3, n_init=10, random_state=42)
-    clusters = km.fit_predict(X)
-    z_df["cluster_id"] = clusters
-
-    cluster_labels = {}
-    cluster_summary = []
-    for cid in range(3):
-        sub_c = z_df[z_df["cluster_id"] == cid]
-        mean_t = float(sub_c["Z_T2M"].mean()) if "Z_T2M" in sub_c else 0.0
-        mean_p = float(sub_c["Z_PRECTOTCORR"].mean()) if "Z_PRECTOTCORR" in sub_c else 0.0
-        mean_g = float(sub_c["Z_GWETROOT"].mean()) if "Z_GWETROOT" in sub_c else 0.0
-        mean_rh = float(sub_c["Z_RH2M"].mean()) if "Z_RH2M" in sub_c else 0.0
-
-        if mean_t > 0.30 and (mean_p < -0.15 or mean_g < -0.15 or mean_rh < -0.20):
-            label = "Warm & Dry Compound Stress Regime"
-            desc = "Elevated air temperature paired with below-normal rainfall, soil moisture, and humidity."
-        elif mean_p > 0.30 or mean_g > 0.30:
-            label = "Wet / Positive Moisture Pulse Regime"
-            desc = "Above-normal rainfall and root-zone soil wetness recharge."
-        elif mean_t < -0.25:
-            label = "Cooler / La Niña-Like Regime"
-            desc = "Below-average thermal conditions with moderate-to-high moisture."
-        else:
-            label = "Baseline / Near-Normal Climatological Regime"
-            desc = "Variables fluctuate within ±0.5σ of their 45-year monthly normal."
-
-        if label in cluster_labels.values():
-            label = f"{label} (Mode {cid + 1})"
-        cluster_labels[cid] = label
-        cluster_summary.append(
-            {
-                "cluster_id": int(cid),
-                "regime_name": label,
-                "plain_description": desc,
-                "count_months": int(len(sub_c)),
-                "share_pct": round(100.0 * len(sub_c) / len(z_df), 1),
-                "mean_Z_T2M": round(mean_t, 2),
-                "mean_Z_PREC": round(mean_p, 2),
-                "mean_Z_GWETROOT": round(mean_g, 2),
-                "mean_Z_RH2M": round(mean_rh, 2),
-            }
-        )
-
-    z_df["regime_name"] = z_df["cluster_id"].map(cluster_labels)
-
-    # -------------------------------------------------------------------------
-    # 4. Detailed Explainability Cards for Every Detected Anomaly
-    # -------------------------------------------------------------------------
-    anom_rows = z_df[z_df["is_anomaly"]].sort_values("consensus_score_pct", ascending=False)
-    anomalies_out = []
-    for _, row in anom_rows.iterrows():
-        abs_vals = {v: abs(float(row[f"Z_{v}"])) for v in vars_use}
-        total_abs = sum(abs_vals.values()) + 1e-12
-        drivers = []
-        for v in sorted(vars_use, key=lambda k: abs_vals[k], reverse=True):
-            z_val = float(row[f"Z_{v}"])
-            raw_val = float(row.get(f"RAW_{v}", np.nan))
-            clim_val = float(row.get(f"CLIM_{v}", np.nan))
-            anom_val = float(row.get(f"A_{v}", np.nan))
-            contrib_pct = 100.0 * abs(z_val) / total_abs
-            drivers.append(
-                {
-                    "variable": v,
-                    "short_name": VARIABLES[v]["short_name"],
-                    "sphere": VARIABLES[v]["sphere"],
-                    "units": VARIABLES[v]["units"],
-                    "raw_value": round(raw_val, 3) if np.isfinite(raw_val) else None,
-                    "normal_value": round(clim_val, 3) if np.isfinite(clim_val) else None,
-                    "anomaly_value": round(anom_val, 3) if np.isfinite(anom_val) else None,
-                    "z_sigma": round(z_val, 2),
-                    "abs_sigma": round(abs(z_val), 2),
-                    "contribution_pct": round(contrib_pct, 1),
-                    "direction": "Above Normal (+σ)" if z_val >= 0 else "Below Normal (-σ)",
-                }
-            )
-        top_d = drivers[0]
-        second_d = drivers[1] if len(drivers) > 1 else drivers[0]
-        models_agreed = []
-        if bool(row["iso_flag"]):
-            models_agreed.append("IsolationForest")
-        if bool(row["lof_flag"]):
-            models_agreed.append("LOF")
-        if bool(row["mahalanobis_flag"]):
-            models_agreed.append("Mahalanobis")
-
-        plain_summary = _build_plain_english_event_summary(row, drivers)
-
-        anomalies_out.append(
+    anomalies = []
+    for _, row in z_df[z_df["is_anomaly"]].sort_values("consensus_score_pct", ascending=False).iterrows():
+        oni_value = float(row["oni"]) if "oni" in row and pd.notna(row["oni"]) else None
+        anomalies.append(
             {
                 "date": str(row["date"]),
-                "year": int(row["year"]),
-                "month": int(row["month"]),
-                "anomaly_score": round(float(row["anomaly_score"]), 3),
-                "consensus_score_pct": round(float(row["consensus_score_pct"]), 1),
+                "consensus_score_pct": float(row["consensus_score_pct"]),
                 "model_votes": int(row["model_votes"]),
-                "models_agreed": ", ".join(models_agreed) if models_agreed else "Top Score Threshold",
-                "mahalanobis_dist": round(float(row["mahalanobis_dist"]), 2),
-                "compound_l2_sigma": round(float(row["compound_l2_sigma"]), 2),
-                "oni": round(float(row["oni"]), 2) if "oni" in row and np.isfinite(row["oni"]) else None,
-                "regime_name": str(row["regime_name"]),
-                "primary_driver": f"{top_d['variable']} ({top_d['z_sigma']:+.2f}σ, {top_d['contribution_pct']:.0f}%)",
-                "secondary_driver": f"{second_d['variable']} ({second_d['z_sigma']:+.2f}σ, {second_d['contribution_pct']:.0f}%)",
-                "plain_english_summary": plain_summary,
-                "drivers": drivers,
+                "detectors": {
+                    "isolation_forest": bool(row["iso_flag"]),
+                    "lof": bool(row["lof_flag"]),
+                    "mahalanobis": bool(row["mahalanobis_flag"]),
+                },
+                "mahalanobis_dist": float(row["mahalanobis_dist"]),
+                "oni": round(oni_value, 2) if oni_value is not None else None,
+                "oni_phase": oni_phase(oni_value),
+                "event_code": classify_event({v: float(row[f"Z_{v}"]) for v in vars_use}),
+                "cluster_id": int(row["cluster_id"]),
+                "drivers": _attribution(row, vars_use),
             }
         )
-
-    extreme_dates = [a["date"] for a in anomalies_out]
-
-    # -------------------------------------------------------------------------
-    # 5. Supervised Lagged Teleconnection & Soil Moisture Driver ML (Random Forest)
-    # -------------------------------------------------------------------------
-    lagged_model_info = run_lagged_driver_random_forest(z_df)
 
     return {
         "variables": vars_use,
         "matrix": z_df,
-        "anomalies": anomalies_out,
-        "extreme_dates": extreme_dates,
-        "pca_variance_ratio": var_ratio,
-        "pca_loadings": pca_loadings,
-        "cluster_summary": cluster_summary,
-        "lagged_driver_model": lagged_model_info,
+        "n_months": int(len(z_df)),
+        "anomalies": anomalies,
+        "extreme_dates": [a["date"] for a in anomalies],
+        "pca": {
+            "variance_ratio": [float(x) for x in pca.explained_variance_ratio_],
+            "loadings": {
+                v: {"pc1": round(float(pca.components_[0, i]), 3), "pc2": round(float(pca.components_[1, i]), 3)}
+                for i, v in enumerate(vars_use)
+            },
+        },
+        "regimes": regimes,
+        "lagged_driver_model": run_lagged_driver_random_forest(z_df),
     }
+
+
+# ---------------------------------------------------------------------------
+# Supervised attribution with an honest baseline
+# ---------------------------------------------------------------------------
+def _driver_features(work: pd.DataFrame) -> Dict[str, pd.Series]:
+    """Concurrent and lagged predictors; codes follow the pattern <SOURCE>_lag<k>."""
+    features: Dict[str, pd.Series] = {}
+    lag_plan = {"Z_PRECTOTCORR": ("PREC", (0, 1, 2)), "Z_T2M": ("T2M", (0, 1)), "Z_RH2M": ("RH2M", (0,)),
+                "Z_ALLSKY_SFC_SW_DWN": ("SW", (0,))}
+    for column, (code, lags) in lag_plan.items():
+        if column in work.columns:
+            for lag in lags:
+                features[f"{code}_lag{lag}"] = work[column].shift(lag)
+    if "oni" in work.columns and work["oni"].notna().sum() > 60:
+        for lag in (0, 1, 3, 6):
+            features[f"ONI_lag{lag}"] = work["oni"].shift(lag)
+    return features
+
+
+def _persistence_r2(train_y: np.ndarray, train_prev: np.ndarray, test_y: np.ndarray, test_prev: np.ndarray) -> float:
+    """R2 of y_t = phi * y_(t-1), with phi fitted on the training fold."""
+    phi = float(np.dot(train_y, train_prev) / max(1e-12, np.dot(train_prev, train_prev)))
+    return float(r2_score(test_y, phi * test_prev))
 
 
 def run_lagged_driver_random_forest(z_df: pd.DataFrame) -> Dict[str, Any]:
     """
-    Trains a RandomForestRegressor to predict Root-Zone Soil Moisture Anomaly (Z_GWETROOT)
-    from concurrent and lagged ocean-atmosphere variables (NOAA ONI at lags 0, 1, 3, 6 months;
-    Precipitation at lags 0, 1, 2 months; Temperature at lags 0, 1; Relative Humidity & Solar Radiation).
-    Reveals which physical drivers and lead times govern droughts/floods in this region.
+    Random Forest that explains root-zone soil moisture anomalies (Z_GWETROOT) from concurrent
+    and lagged drivers. The headline metric is the out-of-sample TimeSeriesSplit R2, shown next to
+    a persistence baseline that only uses last month's soil moisture.
     """
     if "Z_GWETROOT" not in z_df.columns or len(z_df) < 60:
         return {"available": False}
 
-    work = z_df.sort_values(["year", "month"]).copy()
-    feature_map = {}
-
-    if "Z_PRECTOTCORR" in work.columns:
-        work["PREC_lag0"] = work["Z_PRECTOTCORR"]
-        work["PREC_lag1"] = work["Z_PRECTOTCORR"].shift(1)
-        work["PREC_lag2"] = work["Z_PRECTOTCORR"].shift(2)
-        feature_map["PREC_lag0"] = "Precipitation (Current Month t)"
-        feature_map["PREC_lag1"] = "Precipitation (1-Month Lag t-1)"
-        feature_map["PREC_lag2"] = "Precipitation (2-Month Lag t-2)"
-
-    if "Z_T2M" in work.columns:
-        work["T2M_lag0"] = work["Z_T2M"]
-        work["T2M_lag1"] = work["Z_T2M"].shift(1)
-        feature_map["T2M_lag0"] = "Air Temperature (Current Month t)"
-        feature_map["T2M_lag1"] = "Air Temperature (1-Month Lag t-1)"
-
-    if "Z_RH2M" in work.columns:
-        work["RH2M_lag0"] = work["Z_RH2M"]
-        feature_map["RH2M_lag0"] = "Relative Humidity (Current Month t)"
-
-    if "Z_ALLSKY_SFC_SW_DWN" in work.columns:
-        work["SW_lag0"] = work["Z_ALLSKY_SFC_SW_DWN"]
-        feature_map["SW_lag0"] = "Solar Irradiance / Cloud Cover (Month t)"
-
-    if "oni" in work.columns and work["oni"].notna().sum() > 60:
-        work["ONI_lag0"] = work["oni"]
-        work["ONI_lag1"] = work["oni"].shift(1)
-        work["ONI_lag3"] = work["oni"].shift(3)
-        work["ONI_lag6"] = work["oni"].shift(6)
-        feature_map["ONI_lag0"] = "NOAA Oceanic Niño Index (Concurrent t)"
-        feature_map["ONI_lag1"] = "NOAA Oceanic Niño Index (1-Month Lead t-1)"
-        feature_map["ONI_lag3"] = "NOAA Oceanic Niño Index (3-Month Lead t-3)"
-        feature_map["ONI_lag6"] = "NOAA Oceanic Niño Index (6-Month Lead t-6)"
-
-    feat_cols = list(feature_map.keys())
-    clean = work.dropna(subset=feat_cols + ["Z_GWETROOT"]).reset_index(drop=True)
-    if len(clean) < 48:
+    work = z_df.sort_values(["year", "month"]).reset_index(drop=True)
+    features = _driver_features(work)
+    table = pd.DataFrame(features).assign(target=work["Z_GWETROOT"], target_prev=work["Z_GWETROOT"].shift(1)).dropna()
+    if len(table) < 48:
         return {"available": False}
 
-    X = clean[feat_cols].to_numpy(dtype=float)
-    y = clean["Z_GWETROOT"].to_numpy(dtype=float)
+    feat_cols = list(features.keys())
+    X = table[feat_cols].to_numpy(dtype=float)
+    y = table["target"].to_numpy(dtype=float)
+    prev = table["target_prev"].to_numpy(dtype=float)
 
-    rf = RandomForestRegressor(
-        n_estimators=150,
-        max_depth=6,
-        min_samples_leaf=4,
-        random_state=42,
-    )
-    rf.fit(X, y)
-    y_pred_in = rf.predict(X)
-    r2_in = float(r2_score(y, y_pred_in))
+    def _forest(n_estimators: int) -> RandomForestRegressor:
+        return RandomForestRegressor(n_estimators=n_estimators, max_depth=6, min_samples_leaf=4, random_state=RANDOM_STATE)
 
-    # Out-of-fold TimeSeriesSplit R^2
-    tscv = TimeSeriesSplit(n_splits=5)
-    cv_scores = []
-    for train_idx, test_idx in tscv.split(X):
-        rf_cv = RandomForestRegressor(n_estimators=100, max_depth=6, min_samples_leaf=4, random_state=42)
-        rf_cv.fit(X[train_idx], y[train_idx])
-        pred_cv = rf_cv.predict(X[test_idx])
-        cv_scores.append(float(r2_score(y[test_idx], pred_cv)))
+    cv_model, cv_persistence = [], []
+    for train_idx, test_idx in TimeSeriesSplit(n_splits=CV_SPLITS).split(X):
+        model = _forest(100).fit(X[train_idx], y[train_idx])
+        cv_model.append(float(r2_score(y[test_idx], model.predict(X[test_idx]))))
+        cv_persistence.append(_persistence_r2(y[train_idx], prev[train_idx], y[test_idx], prev[test_idx]))
 
-    importances = rf.feature_importances_
-    ranked_features = []
-    for col, imp in sorted(zip(feat_cols, importances), key=lambda x: x[1], reverse=True):
-        r_corr, p_corr = stats.pearsonr(clean[col], clean["Z_GWETROOT"])
-        ranked_features.append(
-            {
-                "feature_code": col,
-                "feature_label": feature_map[col],
-                "importance_pct": round(float(imp * 100.0), 1),
-                "linear_r": round(float(r_corr), 3),
-                "linear_p": round(float(p_corr), 5),
-            }
-        )
+    rf = _forest(150).fit(X, y)
+    ranked = []
+    for code, importance in sorted(zip(feat_cols, rf.feature_importances_), key=lambda item: item[1], reverse=True):
+        r_lin = float(np.corrcoef(table[code], y)[0, 1]) if np.std(table[code]) > 1e-12 else 0.0
+        ranked.append({"feature_code": code, "importance_pct": round(float(importance) * 100.0, 1), "linear_r": round(r_lin, 3)})
 
-    # Best ENSO lead time (among ONI_lag0, ONI_lag1, ONI_lag3, ONI_lag6)
-    oni_lags = [f for f in ranked_features if f["feature_code"].startswith("ONI_")]
-    best_oni = max(oni_lags, key=lambda x: abs(x["linear_r"])) if oni_lags else None
-
+    oni_features = [f for f in ranked if f["feature_code"].startswith("ONI_")]
     return {
         "available": True,
-        "target": "Z_GWETROOT (Root-Zone Soil Moisture Anomaly)",
-        "n_samples": int(len(clean)),
-        "r2_in_sample": round(r2_in, 3),
-        "r2_cv_mean": round(float(np.mean(cv_scores)), 3),
-        "top_features": ranked_features,
-        "best_enso_lag": best_oni,
+        "target": "GWETROOT",
+        "n_samples": int(len(table)),
+        "r2_cv_mean": round(float(np.mean(cv_model)), 3),
+        "r2_cv_folds": [round(v, 3) for v in cv_model],
+        "r2_cv_persistence": round(float(np.mean(cv_persistence)), 3),
+        "r2_in_sample": round(float(r2_score(y, rf.predict(X))), 3),
+        "top_features": ranked,
+        "strongest_enso_lag": max(oni_features, key=lambda f: abs(f["linear_r"])) if oni_features else None,
     }
 
 
-def run_acker_ml_outlier_experiment_all_vars(
-    df: pd.DataFrame,
-    oni_df: Optional[pd.DataFrame] = None,
-    use_homogeneous_ceres: bool = True,
-) -> Dict[str, Any]:
+# ---------------------------------------------------------------------------
+# Outlier sensitivity (Acker et al., 2009)
+# ---------------------------------------------------------------------------
+def outlier_sensitivity_code(before: Dict[str, Any], after: Dict[str, Any]) -> str:
+    """robust, outlier_driven, masked or no_trend, from the two verdicts."""
+    sig_b, sig_a = before["is_significant"], after["is_significant"]
+    if sig_b and sig_a:
+        return "robust" if before["direction"] == after["direction"] else "outlier_driven"
+    if sig_b:
+        return "outlier_driven"
+    if sig_a:
+        return "masked"
+    return "no_trend"
+
+
+def outlier_sensitivity_row(variable: str, before: Dict[str, Any], after: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Runs the full Acker et al. (2009, Table 6 & Fig. 13) Outlier Sensitivity Experiment across all 6 variables:
-    Compares trend slopes and autocorrelation-corrected p-values BEFORE vs. AFTER removing the
-    months flagged by the 3-Model ML Consensus Ensemble.
+    One row of the outlier exclusion test of Acker et al. (2009): the same variable's trend with all
+    months (before) and without the anomalous months (after).
     """
-    ml_res = run_multivariate_anomaly_detective(df, oni_df=oni_df, start_year=1984, end_year=2025)
-    extreme_dates = ml_res["extreme_dates"]
-
-    comparison_rows = []
-    for vc, vmeta in VARIABLES.items():
-        sy = 2001 if (vc == "ALLSKY_SFC_SW_DWN" and use_homogeneous_ceres) else 1984
-        before = analyze_single_variable(df, vc, oni_df=oni_df, start_year=sy, end_year=2025, exclude_dates=None)
-        after = analyze_single_variable(
-            df, vc, oni_df=oni_df, start_year=sy, end_year=2025, exclude_dates=extreme_dates
-        )
-
-        slope_b = before["monthly_mk"]["theil_sen_decade"]
-        slope_a = after["monthly_mk"]["theil_sen_decade"]
-        p_b = before["monthly_mk"]["p_hamed_rao"]
-        p_a = after["monthly_mk"]["p_hamed_rao"]
-
-        sig_b = p_b < 0.05
-        sig_a = p_a < 0.05
-        if sig_b and sig_a and np.sign(slope_b) == np.sign(slope_a):
-            robustness = "Robust Structural Trend (Persists Without Extremes)"
-        elif sig_b and not sig_a:
-            robustness = "Outlier-Driven Signal (Loses Significance Without Extremes)"
-        elif not sig_b and sig_a:
-            robustness = "Masked Background Trend (Emerges After Removing Extremes)"
-        else:
-            robustness = "Stable / No Monotonic Trend in Both Cases"
-
-        comparison_rows.append(
-            {
-                "variable": vc,
-                "short_name": vmeta["short_name"],
-                "units": vmeta["decade_units"],
-                "period": f"{sy}–2025",
-                "slope_all_months": round(slope_b, 4),
-                "p_hr_all_months": round(p_b, 5),
-                "slope_without_ml_extremes": round(slope_a, 4),
-                "p_hr_without_ml_extremes": round(p_a, 5),
-                "slope_delta_pct": round(100.0 * (slope_a - slope_b) / (abs(slope_b) + 1e-9), 1),
-                "structural_diagnosis": robustness,
-            }
-        )
-
+    slope_b = before["monthly_mk"]["theil_sen_decade"]
+    slope_a = after["monthly_mk"]["theil_sen_decade"]
     return {
-        "n_excluded_months": len(extreme_dates),
-        "excluded_dates": extreme_dates,
-        "comparisons": comparison_rows,
+        "variable": variable,
+        "period": [before["year_start"], before["year_end"]],
+        "slope_all_months": round(slope_b, 4),
+        "p_hr_all_months": round(before["monthly_mk"]["p_hamed_rao"], 5),
+        "slope_without_extremes": round(slope_a, 4),
+        "p_hr_without_extremes": round(after["monthly_mk"]["p_hamed_rao"], 5),
+        "slope_delta_pct": round(100.0 * (slope_a - slope_b) / (abs(slope_b) + 1e-9), 1),
+        "code": outlier_sensitivity_code(before["verdict"], after["verdict"]),
     }
-
-
-def run_spatiotemporal_cube_ml(
-    region_dfs: Dict[str, pd.DataFrame],
-    oni_df: Optional[pd.DataFrame] = None,
-) -> Dict[str, Any]:
-    """
-    Runs a synchronized Spatio-Temporal Cube analysis across all loaded regions (1984–2025)
-    to identify Continental Synchronized Anomaly Epochs (months where the largest fraction
-    of regions simultaneously experience multivariate consensus anomalies).
-    """
-    all_anom_records = []
-    region_summaries = []
-
-    for reg_id, df_reg in region_dfs.items():
-        res = run_multivariate_anomaly_detective(df_reg, oni_df=oni_df, start_year=1984, end_year=2025)
-        anoms = res["anomalies"]
-        lag_rf = res["lagged_driver_model"]
-        top_feat = lag_rf["top_features"][0]["feature_label"] if lag_rf.get("available") and lag_rf.get("top_features") else "N/A"
-        best_oni = lag_rf.get("best_enso_lag") or {}
-
-        region_summaries.append(
-            {
-                "region_id": reg_id,
-                "n_consensus_anomalies": len(anoms),
-                "top_event_date": anoms[0]["date"] if anoms else "N/A",
-                "top_event_score": anoms[0]["consensus_score_pct"] if anoms else 0.0,
-                "top_event_driver": anoms[0]["primary_driver"] if anoms else "N/A",
-                "rf_soil_moisture_r2": lag_rf.get("r2_in_sample", 0.0) if lag_rf.get("available") else 0.0,
-                "top_soil_moisture_driver": top_feat,
-                "best_enso_lead_lag": f"{best_oni.get('feature_code', 'N/A')} (r={best_oni.get('linear_r', 0.0):+.2f})"
-                if best_oni
-                else "N/A",
-            }
-        )
-        for a in anoms:
-            all_anom_records.append(
-                {
-                    "date": a["date"],
-                    "region_id": reg_id,
-                    "consensus_score_pct": a["consensus_score_pct"],
-                    "primary_driver": a["primary_driver"],
-                    "oni": a["oni"],
-                }
-            )
-
-    if not all_anom_records:
-        return {"synchronized_epochs": [], "region_ml_summary": region_summaries}
-
-    anom_df = pd.DataFrame(all_anom_records)
-    sync_grp = (
-        anom_df.groupby("date")
-        .agg(
-            n_regions_anomalous=("region_id", "count"),
-            mean_consensus_score=("consensus_score_pct", "mean"),
-            regions_list=("region_id", lambda s: ", ".join(sorted(set(s)))),
-            oni=("oni", "first"),
-        )
-        .reset_index()
-        .sort_values(["n_regions_anomalous", "mean_consensus_score"], ascending=[False, False])
-    )
-
-    top_epochs = sync_grp[sync_grp["n_regions_anomalous"] >= 3].head(15).to_dict(orient="records")
-    return {
-        "total_spatiotemporal_vectors": int(sum(len(df) for df in region_dfs.values())),
-        "synchronized_epochs": top_epochs,
-        "region_ml_summary": region_summaries,
-    }
-

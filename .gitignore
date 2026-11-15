@@ -15,3 +15,10 @@ venv/
 Thumbs.db
 .vscode/
 .idea/
+
+# Runtime caches and optional artifacts
+data/cache/live/
+models/*.joblib
+
+# Keyframe previews written by deliverables/build_30s_video.py
+deliverables/assets/motion_kf_*.png

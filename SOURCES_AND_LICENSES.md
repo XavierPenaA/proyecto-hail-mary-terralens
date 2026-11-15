@@ -1,57 +1,49 @@
-# TerraLens — Third-Party Data Sources, Open-Source Libraries & Scientific Citations
+# TerraLens — Data Sources, Libraries and Citations
 
-In strict compliance with the **2026 NASA Space Apps Challenge Participant Terms and Conditions**, every original artifact in TerraLens is licensed under the **Apache License 2.0** (`LICENSE`), and all NASA, interagency, and open-source third-party materials are documented below with their respective licenses and references.
+TerraLens's own code, documentation and visuals are licensed under the **Apache License 2.0** (`LICENSE`). Third-party data and software keep their own terms, listed below.
 
 ---
 
-## 1. Space Agency & Climate Datasets
+## 1. Data
 
-| Source / Dataset | Provider | Coverage Used in TerraLens | License / Access Terms | Reference URL |
+| Dataset | Provider | Use in TerraLens | Terms | Reference |
 | :--- | :--- | :--- | :--- | :--- |
-| **NASA POWER** (MERRA-2 / CERES SYN1deg / GPM IMERG) | NASA Langley Research Center (LaRC) | Monthly & regional climate cubes (`1981–2025`), 11 global benchmark regions, 96-cell Ecuador grid (`~55 km`), live `(lat, lon)` coordinate probe | Open Public Data — NASA Earthdata Open Data Policy | https://power.larc.nasa.gov/ |
-| **NASA Terra MODIS MOD13Q1 v061 NDVI** | NASA EOSDIS LP DAAC (via APPEEARS / ORNL) | 250 m 16-day vegetation greenness stress passes (`115` passes, `2021–2025`, Paute Basin) | Open Public Data — NASA Earthdata Open Data Policy | https://modis.gsfc.nasa.gov/ |
-| **NASA Earthdata CMR / STAC Catalog** | NASA Earthdata | Multi-scale granule catalog discovery metadata (`MOD13Q1`, `MERRA-2`, `CERES`) | Open Public API — NASA Earthdata | https://cmr.earthdata.nasa.gov/ |
-| **NOAA Oceanic Niño Index (ONI)** | NOAA Climate Prediction Center (CPC) | Monthly ENSO SST anomaly index (`1981–2025`) for South American teleconnection dipole verification | U.S. Government Public Domain (No restrictions) | https://origin.cpc.ncep.noaa.gov/products/analysis_monitoring/ensostuff/ONI_v5.php |
-| **Meteomatics Weather API** | Meteomatics AG | Topographically downscaled `1 km` soil moisture deficit, `-15 cm` moisture index, evapotranspiration, temperature, and precipitation (`2023–2024`) | Free / Academic Open API Tier (Public educational use cited) | https://www.meteomatics.com/en/weather-api/ |
+| **NASA POWER** monthly point and regional API (sources reported by the API: MERRA-2, GEWEX SRB, CERES SYN1deg) | NASA Langley Research Center | Monthly 1981–2025 series for 11 regions, a 96-cell grid over Ecuador, and the live coordinate probe. `PRECTOTCORR` is MERRA-2 bias-corrected precipitation; solar irradiance is GEWEX SRB to 2000 and CERES SYN1deg from 2001 | NASA Earthdata open data policy | https://power.larc.nasa.gov/ |
+| **MODIS MOD13Q1 v061 NDVI** | NASA ORNL DAAC (MODIS/VIIRS subsets web service) | 250 m, 16-day NDVI, 2021–2025, for five regions | NASA Earthdata open data policy | https://modis.ornl.gov/data/modis_webservice.html |
+| **Planetary Computer STAC** (`modis-13Q1-061` collection) | Microsoft | Granule metadata shown as provenance | Planetary Computer terms of use | https://planetarycomputer.microsoft.com/ |
+| **Oceanic Niño Index (ONI)** | NOAA Climate Prediction Center | Monthly ENSO index for correlations and event context | U.S. Government public domain | https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt |
+| **Meteomatics Weather API** | Meteomatics AG (NASA Space Apps partner offer) | 1 km downscaled snapshots for four Ecuadorian regions, 2023–2024 | Partner-offer terms. **To verify:** whether the terms allow redistributing the cached file in a public repository | https://www.meteomatics.com/en/weather-api/ |
 
----
+## 2. Software
 
-## 2. Open-Source Software Libraries (OSI-Approved Licenses)
-
-| Package / Library | Role in TerraLens | OSI License | Source / URL |
+| Package | Role | License | Source |
 | :--- | :--- | :--- | :--- |
-| **FastAPI** | High-speed REST API & static UI host | MIT License | https://fastapi.tiangolo.com/ |
-| **Uvicorn** | ASGI web server | BSD 3-Clause License | https://www.uvicorn.org/ |
-| **NumPy** | Numerical array transformations & deseasonalization | BSD 3-Clause License | https://numpy.org/ |
-| **Pandas** | Multi-sensor time-series alignment & CSV export | BSD 3-Clause License | https://pandas.pydata.org/ |
-| **SciPy** | Theil-Sen slopes, Mann-Kendall variance & statistical tests | BSD 3-Clause License | https://scipy.org/ |
-| **Scikit-Learn** | `HistGradientBoostingRegressor`, `RandomForestRegressor`, `IsolationForest`, `LocalOutlierFactor`, `EllipticEnvelope`, `PCA`, `TimeSeriesSplit` | BSD 3-Clause License | https://scikit-learn.org/ |
-| **Joblib** | Model persistence (`terralens_ml_suite.joblib`) | BSD 3-Clause License | https://joblib.readthedocs.io/ |
-| **Pytest** | Automated scientific validation harness | MIT License | https://docs.pytest.org/ |
-| **Leaflet.js** | Interactive regional + global trend & coordinate map | BSD 2-Clause License | https://leafletjs.com/ |
-| **Chart.js** | Interactive time-series, PCA phase space & sensitivity charts | MIT License | https://www.chartjs.org/ |
-| **CARTO / OpenStreetMap Tiles** | Dark & light cartographic reference basemaps | ODbL / CC BY 4.0 (with attribution rendered on map) | https://carto.com/attributions |
-| **Plus Jakarta Sans & JetBrains Mono** | Observatory typography (Google Fonts) | SIL Open Font License 1.1 | https://fonts.google.com/ |
+| FastAPI | REST API and static file server | MIT | https://fastapi.tiangolo.com/ |
+| Uvicorn | ASGI server | BSD-3-Clause | https://www.uvicorn.org/ |
+| NumPy | Numerical arrays | BSD-3-Clause | https://numpy.org/ |
+| pandas | Time-series tables | BSD-3-Clause | https://pandas.pydata.org/ |
+| SciPy | Theil-Sen slopes, distributions, ranks | BSD-3-Clause | https://scipy.org/ |
+| scikit-learn | Isolation Forest, Local Outlier Factor, PCA, K-Means, Random Forest, gradient boosting, Ridge, TimeSeriesSplit | BSD-3-Clause | https://scikit-learn.org/ |
+| joblib | Optional export of the benchmark model (`train_models.py --save-model`) | BSD-3-Clause | https://joblib.readthedocs.io/ |
+| pytest, httpx | Test suite (development only) | MIT, BSD-3-Clause | https://docs.pytest.org/ |
+| Chart.js 4.4.1 | Charts (vendored in `static/vendor/`) | MIT | https://www.chartjs.org/ |
+| Leaflet 1.9.4 | Map (vendored in `static/vendor/leaflet/`) | BSD-2-Clause | https://leafletjs.com/ |
+| Esri World Light/Dark Gray Canvas basemaps | Map tiles (loaded online) | Esri terms of use; attribution "Esri, HERE, Garmin, © OpenStreetMap contributors" shown on the map | https://www.esri.com/en-us/legal/terms/full-master-agreement |
+| Plus Jakarta Sans, JetBrains Mono | Typography (Google Fonts) | SIL Open Font License 1.1 | https://fonts.google.com/ |
 
----
+## 3. Methods cited
 
-## 3. Peer-Reviewed Scientific & Statistical Methods Cited
+1. **Acker, J. G., McMahon, E., Shen, S., Hearty, T., & Casey, N. (2009).** *Time-series analysis of remotely-sensed SeaWiFS chlorophyll in river-influenced coastal regions.* Preprint, NASA NTRS 20090042747. Monthly and annual anomaly analysis and the exclusion of an extreme event to test a trend (their Po River example).
+2. **Hamed, K. H., & Rao, A. R. (1998).** A modified Mann-Kendall trend test for autocorrelated data. *Journal of Hydrology*, 204(1–4), 182–196.
+3. **Santer, B. D., et al. (2000).** Statistical significance of trends and trend differences in layer-average atmospheric temperature time series. *JGR*, 105(D6), 7337–7356.
+4. **Sen, P. K. (1968).** Estimates of the regression coefficient based on Kendall's tau. *JASA*, 63(324), 1379–1389.
+5. **Pettitt, A. N. (1979).** A non-parametric approach to the change-point problem. *Applied Statistics*, 28(2), 126–135. Used with a block-bootstrap p-value.
+6. **Benjamini, Y., & Hochberg, Y. (1995).** Controlling the false discovery rate: a practical and powerful approach to multiple testing. *JRSS B*, 57(1), 289–300.
+7. **Bretherton, C. S., et al. (1999).** The effective number of spatial degrees of freedom of a time-varying field. *Journal of Climate*, 12(7), 1990–2009. Effective sample size for correlations.
+8. **Kass, R. E., & Raftery, A. E. (1995).** Bayes factors. *JASA*, 90(430), 773–795. BIC evidence thresholds for the step-versus-trend check.
+9. **Wilks, D. S. (2016).** "The stippling shows statistically significant grid points". *BAMS*, 97(12), 2263–2273. Field significance on the map.
 
-1. **Acker, J., et al. (2009).** *Use of NASA Giovanni to Examine Regional Time-Series Trends and Anomaly Signatures.* NASA Goddard Space Flight Center (`NASA_Reference_Paper_20090042747.pdf`). Used as scientific motivation for satellite trend verification and extreme-event sensitivity analysis.
-2. **Hamed, K. H., & Rao, A. R. (1998).** *A modified Mann-Kendall trend test for autocorrelated data.* Journal of Hydrology, 204(1–4), 182–196. Used to prevent positive lag-1 autocorrelation from inflating false climate trend significance.
-3. **Santer, B. D., et al. (2000).** *Statistical significance of trends and trend differences in layer-average atmospheric temperature time series.* Journal of Geophysical Research, 105(D6), 7337–7356. Used to compute effective degrees of freedom (`n_eff`).
-4. **Sen, P. K. (1968).** *Estimates of the regression coefficient based on Kendall's tau.* JASA, 63(324), 1379–1389. Non-parametric median slope estimator resistant to ENSO/drought spikes.
-5. **Pettitt, A. N. (1979).** *A non-parametric approach to the change-point problem.* Applied Statistics, 28(2), 126–135. Identifies exact instrument boundaries (ERBE→CERES 2001) and abrupt structural climate shifts.
-6. **Benjamini, Y., & Hochberg, Y. (1995).** *Controlling the false discovery rate: a practical and powerful approach to multiple testing.* JRSS-B, 57(1), 289–300. Controls family-wise false discoveries across multi-variable tables.
+## 4. Team and AI disclosure
 
----
-
-## 4. Team Attribution & AI Disclosure
-
-- **Team Name:** Proyecto Hail Mary (Ecuador)
-- **Members:**
-  - **Xavier Sebastián Peña Avilés** (`@xavierpena` · Team Owner)
-  - **Bryam Astudillo** (`@bryamaa`)
-  - **Juan Jose Coronel Crespo** (`@jcoronel`)
-  - **David Sebastián Célleri Bojorque** (`@celleri`)
-- **AI Tool Disclosure:** AI coding assistants were used during prototyping, bilingual UI engineering (`EN`/`ES`), visualization scripting, and documentation formatting. All satellite time series (`1981–2025`), statistical hypotheses, chronological 3-way ML training splits, and unit tests were executed deterministically and verified directly against real NASA/NOAA data.
+- **Team:** Proyecto Hail Mary (Ecuador) — Xavier Sebastián Peña Avilés (team owner), Bryam Astudillo, Juan Jose Coronel Crespo, David Sebastián Célleri Bojorque.
+- **AI disclosure:** AI coding assistants were used for software engineering, the bilingual interface, visualization code, tests and documentation. All statistics run deterministically on the cached NASA and NOAA data with fixed random seeds.

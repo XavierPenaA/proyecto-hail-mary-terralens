@@ -1,384 +1,303 @@
 """
-Catalog of Empirically Verified Regions, Satellite Variables, Instrument Boundaries,
-and Guided Detective Cases for TerraLens v2.1.
+TerraLens catalog: data period, variables and benchmark regions.
+
+Descriptions are qualitative on purpose. Every number shown to users is computed from the data
+at run time (see core/case_studies.py for the guided-case findings).
 """
 
-from typing import Dict, Any, List
+from typing import Any, Dict, Optional
+
+DATA_START_YEAR = 1981
+DATA_END_YEAR = 2025
+# The machine-learning matrix needs all six variables; solar irradiance starts in 1984.
+ML_START_YEAR = 1984
+MIN_WINDOW_YEARS = 10
 
 VARIABLES: Dict[str, Dict[str, Any]] = {
     "T2M": {
         "code": "T2M",
         "name": "Air Temperature at 2 Meters",
-        "name_es": "Temperatura del Aire a 2 Metros",
-        "short_name": "2m Air Temp",
-        "short_name_es": "Temp. Aire 2m",
+        "name_es": "Temperatura del aire a 2 metros",
+        "short_name": "2 m air temperature",
+        "short_name_es": "Temperatura del aire 2 m",
         "units": "°C",
         "decade_units": "°C / decade",
-        "sphere": "Atmosphere (Thermal)",
-        "sensor_source": "NASA MERRA-2 Reanalysis (M2TMNXSLV v5.12.4)",
+        "units_es": "°C",
+        "decade_units_es": "°C / década",
+        "source": "NASA MERRA-2 reanalysis (via NASA POWER)",
         "resolution": "0.5° × 0.625° (~55 km)",
-        "temporal_coverage": "1981–2025 (Monthly)",
+        "first_year": 1981,
         "known_splice": None,
-        "student_explainer": (
-            "Measures average air temperature 2 meters above the ground. "
-            "Persistent positive anomalies indicate atmospheric warming or El Niño thermal pulses."
-        ),
+        "map": {"scale_limit": 0.4, "palette": "temperature"},
+        "explainer": {
+            "en": "Average air temperature 2 m above the ground.",
+            "es": "Temperatura media del aire a 2 m sobre el suelo.",
+        },
     },
     "PRECTOTCORR": {
         "code": "PRECTOTCORR",
-        "name": "Corrected Total Precipitation",
-        "name_es": "Precipitación Total Corregida",
+        "name": "Precipitation (bias-corrected)",
+        "name_es": "Precipitación (corregida por sesgo)",
         "short_name": "Precipitation",
         "short_name_es": "Precipitación",
         "units": "mm/day",
         "decade_units": "mm/day / decade",
-        "sphere": "Hydrosphere (Atmospheric Water)",
-        "sensor_source": "NASA MERRA-2 + GPCP Satellite-Gauge Corrected",
+        "units_es": "mm/día",
+        "decade_units_es": "mm/día / década",
+        "source": "NASA MERRA-2 bias-corrected precipitation (via NASA POWER)",
         "resolution": "0.5° × 0.625° (~55 km)",
-        "temporal_coverage": "1981–2025 (Monthly)",
+        "first_year": 1981,
         "known_splice": None,
-        "student_explainer": (
-            "Measures daily average rainfall and snowfall corrected with satellite and rain-gauge observations. "
-            "Reveals long-term drying, wetting, and extreme flood/drought pulses."
-        ),
+        "map": {"scale_limit": 0.5, "palette": "moisture"},
+        "explainer": {
+            "en": "Average daily precipitation, corrected with observation-based products.",
+            "es": "Precipitación media diaria, corregida con productos basados en observaciones.",
+        },
     },
     "GWETROOT": {
         "code": "GWETROOT",
         "name": "Root Zone Soil Wetness",
-        "name_es": "Humedad del Suelo en Zona Radicular",
-        "short_name": "Root Soil Moisture",
-        "short_name_es": "Humedad Suelo Raíz",
+        "name_es": "Humedad del suelo en la zona radicular",
+        "short_name": "Root-zone soil wetness",
+        "short_name_es": "Humedad del suelo radicular",
         "units": "fraction (0–1)",
         "decade_units": "fraction / decade",
-        "sphere": "Hydrosphere / Pedosphere",
-        "sensor_source": "NASA MERRA-2 Land Surface Model (GWETROOT)",
+        "units_es": "fracción (0–1)",
+        "decade_units_es": "fracción / década",
+        "source": "NASA MERRA-2 land surface model (via NASA POWER)",
         "resolution": "0.5° × 0.625° (~55 km)",
-        "temporal_coverage": "1981–2025 (Monthly)",
+        "first_year": 1981,
         "known_splice": None,
-        "student_explainer": (
-            "Fraction of water saturation in the root zone (top ~100 cm of soil) available to plants and crops. "
-            "Has high month-to-month memory (serial autocorrelation), requiring Hamed-Rao / Santer statistical correction."
-        ),
+        "map": {"scale_limit": 0.03, "palette": "moisture"},
+        "explainer": {
+            "en": "Share of water saturation in the upper ~1 m of soil. It changes slowly, so consecutive months are strongly correlated.",
+            "es": "Fracción de saturación de agua en el primer metro de suelo. Cambia lento, así que los meses consecutivos están muy correlacionados.",
+        },
     },
     "GWETTOP": {
         "code": "GWETTOP",
         "name": "Surface Soil Wetness (0–5 cm)",
-        "name_es": "Humedad del Suelo Superficial (0–5 cm)",
-        "short_name": "Surface Soil Moisture",
-        "short_name_es": "Humedad Suelo Sup.",
+        "name_es": "Humedad del suelo superficial (0–5 cm)",
+        "short_name": "Surface soil wetness",
+        "short_name_es": "Humedad del suelo superficial",
         "units": "fraction (0–1)",
         "decade_units": "fraction / decade",
-        "sphere": "Hydrosphere / Land Surface",
-        "sensor_source": "NASA MERRA-2 Land Surface Model (GWETTOP)",
+        "units_es": "fracción (0–1)",
+        "decade_units_es": "fracción / década",
+        "source": "NASA MERRA-2 land surface model (via NASA POWER)",
         "resolution": "0.5° × 0.625° (~55 km)",
-        "temporal_coverage": "1981–2025 (Monthly)",
+        "first_year": 1981,
         "known_splice": None,
-        "student_explainer": (
-            "Water saturation in the top 5 cm of soil. Responds rapidly to evaporative demand, heatwaves, and rainfall deficits."
-        ),
+        "map": None,
+        "explainer": {
+            "en": "Share of water saturation in the top 5 cm of soil. Reacts quickly to rain and heat.",
+            "es": "Fracción de saturación de agua en los primeros 5 cm del suelo. Reacciona rápido a la lluvia y al calor.",
+        },
     },
     "ALLSKY_SFC_SW_DWN": {
         "code": "ALLSKY_SFC_SW_DWN",
         "name": "All-Sky Surface Shortwave Downward Irradiance",
-        "name_es": "Irradiancia Solar de Onda Corta en Superficie",
-        "short_name": "Solar Irradiance (Cloud Proxy)",
-        "short_name_es": "Irradiancia Solar",
+        "name_es": "Irradiancia solar de onda corta en superficie",
+        "short_name": "Surface solar irradiance",
+        "short_name_es": "Irradiancia solar",
         "units": "MJ/m²/day",
         "decade_units": "MJ/m²/day / decade",
-        "sphere": "Atmosphere (Radiation & Clouds)",
-        "sensor_source": "NASA GEWEX SRB (1984–2000) + NASA CERES SYN1deg (2001–2025)",
-        "resolution": "1.0° × 1.0° (~110 km)",
-        "temporal_coverage": "1984–2025 (1981–1983 missing)",
-        "known_splice": {
-            "date": "2001-01",
-            "year": 2001,
-            "pre_sensor": "NASA GEWEX SRB v4 (1984–2000)",
-            "post_sensor": "NASA CERES SYN1deg (2001–present)",
-            "warning": (
-                "INSTRUMENT SPLICE WARNING: NASA POWER transitions from GEWEX SRB to CERES SYN1deg in January 2001. "
-                "Analyzing 1984–2025 as a single homogeneous series introduces an artificial step jump (p < 1e-8). "
-                "Enable the Homogeneous CERES Era Filter (2001–2025) to measure true physical radiation trends."
-            ),
+        "units_es": "MJ/m²/día",
+        "decade_units_es": "MJ/m²/día / década",
+        "source": "NASA GEWEX SRB (to 2000) + NASA CERES SYN1deg (2001 on), via NASA POWER",
+        "resolution": "1° × 1° (~110 km)",
+        "first_year": 1984,
+        "known_splice": {"date": "2001-01", "pre_sensor": "GEWEX SRB", "post_sensor": "CERES SYN1deg"},
+        "map": None,
+        "explainer": {
+            "en": "Solar energy reaching the ground through clouds and aerosols. NASA POWER switches source in January 2001.",
+            "es": "Energía solar que llega al suelo a través de nubes y aerosoles. NASA POWER cambia de fuente en enero de 2001.",
         },
-        "student_explainer": (
-            "Solar energy reaching Earth's surface through clouds and aerosols. "
-            "Also serves as a textbook case study in satellite data hygiene due to the 2001 GEWEX-to-CERES sensor transition."
-        ),
     },
     "RH2M": {
         "code": "RH2M",
         "name": "Relative Humidity at 2 Meters",
-        "name_es": "Humedad Relativa a 2 Metros",
-        "short_name": "Relative Humidity",
-        "short_name_es": "Humedad Relativa",
+        "name_es": "Humedad relativa a 2 metros",
+        "short_name": "Relative humidity",
+        "short_name_es": "Humedad relativa",
         "units": "%",
         "decade_units": "% / decade",
-        "sphere": "Atmosphere (Moisture)",
-        "sensor_source": "NASA MERRA-2 Reanalysis",
+        "units_es": "%",
+        "decade_units_es": "% / década",
+        "source": "NASA MERRA-2 reanalysis (via NASA POWER)",
         "resolution": "0.5° × 0.625° (~55 km)",
-        "temporal_coverage": "1981–2025 (Monthly)",
+        "first_year": 1981,
         "known_splice": None,
-        "student_explainer": (
-            "Ratio of current air water vapor to saturation at 2m height. "
-            "Falling relative humidity combined with rising temperature accelerates evapotranspiration and wildfire risk."
-        ),
+        "map": None,
+        "explainer": {
+            "en": "Water vapour in the air as a share of saturation, 2 m above the ground.",
+            "es": "Vapor de agua del aire como porcentaje de la saturación, a 2 m del suelo.",
+        },
     },
 }
 
+# zone codes: ecuador, south_america, global_reference (labels in the frontend locales)
 REGIONS: Dict[str, Dict[str, Any]] = {
     "EC_Coast_Guayas": {
-        "id": "EC_Coast_Guayas",
-        "name": "Ecuador Pacific Coast (Guayas / El Oro)",
-        "name_es": "Costa del Pacífico de Ecuador (Guayas / El Oro)",
-        "country": "Ecuador",
-        "zone": "Ecuador & Andes Focus",
+        "name": "Ecuador Pacific Coast (Guayas)",
+        "name_es": "Costa del Pacífico de Ecuador (Guayas)",
+        "zone": "ecuador",
         "lat": -2.19,
         "lon": -79.89,
-        "biome": "Tropical Pacific Coastal Plain",
         "has_modis_250m": True,
         "has_meteomatics_1km": True,
-        "summary": (
-            "Primary Pacific entry zone for El Niño (ENSO) warm SST anomalies. "
-            "Exhibits extreme positive rainfall pulses (+4.8σ in 1997–98 El Niño) and strong positive correlation with NOAA ONI."
-        ),
+        "summary": {
+            "en": "Coastal plain where El Niño events bring heavy rain. The point lies on Guayaquil and the Guayas river.",
+            "es": "Llanura costera donde El Niño trae lluvias fuertes. El punto cae sobre Guayaquil y el río Guayas.",
+        },
     },
     "EC_Andes_Paute": {
-        "id": "EC_Andes_Paute",
-        "name": "Southern Ecuadorian Andes (Paute / Mazar Basin)",
-        "name_es": "Andes del Sur de Ecuador (Cuenca Paute / Mazar)",
-        "country": "Ecuador",
-        "zone": "Ecuador & Andes Focus",
+        "name": "Southern Ecuadorian Andes (Paute / Mazar)",
+        "name_es": "Andes del sur de Ecuador (Paute / Mazar)",
+        "zone": "ecuador",
         "lat": -2.61,
         "lon": -78.63,
-        "biome": "Tropical Andean Hydroelectric Canyon (~2,844m grid avg)",
         "has_modis_250m": True,
         "has_meteomatics_1km": True,
-        "summary": (
-            "Ecuador's critical hydroelectric corridor (Mazar-Paute). Demonstrates why coarse 55 km MERRA-2 grids smooth narrow mountain valleys, "
-            "requiring 1 km Meteomatics soil moisture deficit and 250 m NASA MODIS NDVI to resolve the 2023–2024 drought crisis."
-        ),
+        "summary": {
+            "en": "Hydropower basin in steep terrain, where a ~55 km grid cell mixes very different slopes.",
+            "es": "Cuenca hidroeléctrica en relieve abrupto, donde una celda de ~55 km mezcla laderas muy distintas.",
+        },
     },
     "EC_Andes_Quito": {
-        "id": "EC_Andes_Quito",
-        "name": "Northern Ecuadorian Andes (Quito / Pichincha)",
-        "name_es": "Andes del Norte de Ecuador (Quito / Pichincha)",
-        "country": "Ecuador",
-        "zone": "Ecuador & Andes Focus",
+        "name": "Northern Ecuadorian Andes (Quito)",
+        "name_es": "Andes del norte de Ecuador (Quito)",
+        "zone": "ecuador",
         "lat": -0.18,
         "lon": -78.47,
-        "biome": "High-Altitude Inter-Andean Valley",
         "has_modis_250m": True,
         "has_meteomatics_1km": True,
-        "summary": (
-            "Exhibits statistically significant 45-year warming (+0.27 °C/decade, Hamed-Rao p < 0.0001) and drying "
-            "(PRECTOTCORR -0.15 mm/day/decade, p = 0.044; RH2M -0.30%/decade, p = 0.0051)."
-        ),
+        "summary": {
+            "en": "High inter-Andean valley around the capital.",
+            "es": "Valle interandino alto alrededor de la capital.",
+        },
     },
     "EC_Amazon_Napo": {
-        "id": "EC_Amazon_Napo",
-        "name": "Ecuadorian Amazon Foothills (Sucumbíos / Napo)",
-        "name_es": "Piedemonte Amazónico Ecuatoriano (Sucumbíos / Napo)",
-        "country": "Ecuador",
-        "zone": "Ecuador & Andes Focus",
+        "name": "Ecuadorian Amazon Foothills (Napo)",
+        "name_es": "Piedemonte amazónico de Ecuador (Napo)",
+        "zone": "ecuador",
         "lat": -0.47,
         "lon": -76.99,
-        "biome": "Western Amazonian Piedmont",
         "has_modis_250m": False,
         "has_meteomatics_1km": True,
-        "summary": (
-            "Andean-Amazonian transition zone. Features a verified August 2007 reanalysis assimilation regime shift "
-            "detected by the Pettitt change-point test (p < 1e-19)."
-        ),
+        "summary": {
+            "en": "Transition between the Andes and the Amazon lowlands.",
+            "es": "Transición entre los Andes y la llanura amazónica.",
+        },
     },
     "EC_Galapagos": {
-        "id": "EC_Galapagos",
         "name": "Galápagos Islands (Santa Cruz)",
-        "name_es": "Islas Galápagos (Santa Cruz, Ecuador)",
-        "country": "Ecuador",
-        "zone": "Ecuador & Andes Focus",
+        "name_es": "Islas Galápagos (Santa Cruz)",
+        "zone": "ecuador",
         "lat": -0.63,
         "lon": -90.36,
-        "biome": "Equatorial Pacific Marine-Terrestrial Ecosystem",
         "has_modis_250m": False,
         "has_meteomatics_1km": False,
-        "summary": (
-            "Direct oceanic thermometer for Niño 3 / 3.4 anomalies (T2M correlation with ONI r = +0.52, p < 0.0001) "
-            "with significant long-term root-zone wetting (+0.011/decade, p = 0.0029)."
-        ),
+        "summary": {
+            "en": "Equatorial Pacific islands sitting on the ocean surface that defines El Niño.",
+            "es": "Islas del Pacífico ecuatorial, sobre el océano que define a El Niño.",
+        },
     },
     "BR_Amazon_Manaus": {
-        "id": "BR_Amazon_Manaus",
-        "name": "Central Amazon Basin (Manaus, Brazil)",
-        "name_es": "Cuenca Amazónica Central (Manaos, Brasil)",
-        "country": "Brazil",
-        "zone": "South American Benchmark",
+        "name": "Central Amazon (Manaus, Brazil)",
+        "name_es": "Amazonía central (Manaos, Brasil)",
+        "zone": "south_america",
         "lat": -3.12,
         "lon": -60.02,
-        "biome": "Central Lowland Tropical Rainforest",
         "has_modis_250m": True,
         "has_meteomatics_1km": False,
-        "summary": (
-            "Opposite pole of the South American ENSO dipole: while El Niño wets coastal Ecuador, it strongly dries Central Amazonia "
-            "(GWETROOT r_ONI = -0.42, p < 0.0001), compounding a severe 45-year drying trend (-0.35 mm/day/decade, p = 0.0002)."
-        ),
+        "summary": {
+            "en": "Central Amazon basin. The point lies on the city of Manaus and the Rio Negro.",
+            "es": "Cuenca amazónica central. El punto cae sobre la ciudad de Manaos y el río Negro.",
+        },
     },
     "BR_Pantanal": {
-        "id": "BR_Pantanal",
-        "name": "Brazilian Pantanal Tropical Wetland",
-        "name_es": "Humedal Tropical del Pantanal (Brasil)",
-        "country": "Brazil",
-        "zone": "South American Benchmark",
+        "name": "Pantanal Wetland (Brazil)",
+        "name_es": "Humedal del Pantanal (Brasil)",
+        "zone": "south_america",
         "lat": -17.75,
         "lon": -56.90,
-        "biome": "World's Largest Tropical Flooded Savanna",
         "has_modis_250m": True,
         "has_meteomatics_1km": False,
-        "summary": (
-            "Hotspot of the most severe compound hydroclimatic trend in South America (1981–2025): warming at +0.53 °C/decade, "
-            "rainfall declining by -0.50 mm/day/decade, and relative humidity dropping -3.07%/decade (all Hamed-Rao p < 0.0001)."
-        ),
+        "summary": {
+            "en": "The world's largest tropical wetland, a seasonal flooded savanna.",
+            "es": "El mayor humedal tropical del mundo, una sabana inundable estacional.",
+        },
     },
     "PE_Altiplano": {
-        "id": "PE_Altiplano",
-        "name": "Peruvian-Bolivian Altiplano (Lake Titicaca)",
-        "name_es": "Altiplano Peruano-Boliviano (Lago Titicaca)",
-        "country": "Peru / Bolivia",
-        "zone": "South American Benchmark",
+        "name": "Peru-Bolivia Altiplano (Lake Titicaca)",
+        "name_es": "Altiplano peruano-boliviano (lago Titicaca)",
+        "zone": "south_america",
         "lat": -15.84,
         "lon": -69.50,
-        "biome": "High-Andean Endorheic Basin (~3,810m)",
         "has_modis_250m": False,
         "has_meteomatics_1km": False,
-        "summary": (
-            "High-altitude plateau showing sustained warming (+0.13 °C/decade, p = 0.037) and strong thermal coupling to El Niño (r_ONI = +0.38)."
-        ),
+        "summary": {
+            "en": "High plateau around 3,800 m.",
+            "es": "Meseta alta, alrededor de 3.800 m.",
+        },
     },
     "US_Mississippi_Delta": {
-        "id": "US_Mississippi_Delta",
-        "name": "Mississippi River Delta (Louisiana, USA — Acker Ref.)",
-        "name_es": "Delta del Río Misisipi (EE. UU. — Ref. Acker et al.)",
-        "country": "United States",
-        "zone": "Global SME Reference Nodes",
+        "name": "Mississippi River Delta (Louisiana, USA)",
+        "name_es": "Delta del río Misisipi (Luisiana, EE. UU.)",
+        "zone": "global_reference",
         "lat": 29.15,
         "lon": -89.25,
-        "biome": "River-Influenced Coastal Margin",
         "has_modis_250m": False,
         "has_meteomatics_1km": False,
-        "summary": (
-            "Primary reference region analyzed in the official challenge benchmark paper by Acker et al. (2009, NASA GES DISC NTRS 20090042747)."
-        ),
+        "summary": {
+            "en": "River-influenced coast also studied by Acker et al. (2009), the reference paper of this method.",
+            "es": "Costa con influencia fluvial, también estudiada por Acker et al. (2009), el artículo de referencia del método.",
+        },
     },
     "US_Arctic_Barrow": {
-        "id": "US_Arctic_Barrow",
-        "name": "Arctic Coastal Plain (Utqiaġvik / Barrow, Alaska)",
-        "name_es": "Llanura Costera Ártica (Utqiaġvik / Barrow, Alaska)",
-        "country": "United States",
-        "zone": "Global SME Reference Nodes",
+        "name": "Arctic Coastal Plain (Utqiaġvik, Alaska)",
+        "name_es": "Llanura costera ártica (Utqiaġvik, Alaska)",
+        "zone": "global_reference",
         "lat": 71.29,
         "lon": -156.79,
-        "biome": "Arctic Tundra / Cryosphere Margin",
         "has_modis_250m": False,
         "has_meteomatics_1km": False,
-        "summary": (
-            "Global benchmark for polar amplification, exhibiting extreme multi-decadal warming and cryospheric regime shift."
-        ),
+        "summary": {
+            "en": "Arctic tundra; frozen soil keeps soil-wetness variables nearly constant for months.",
+            "es": "Tundra ártica; el suelo congelado mantiene casi constante la humedad del suelo durante meses.",
+        },
     },
     "ES_Med_Almeria": {
-        "id": "ES_Med_Almeria",
-        "name": "Western Mediterranean Basin (Almería, Spain)",
-        "name_es": "Cuenca Mediterránea Occidental (Almería, España)",
-        "country": "Spain",
-        "zone": "Global SME Reference Nodes",
+        "name": "Western Mediterranean (Almería, Spain)",
+        "name_es": "Mediterráneo occidental (Almería, España)",
+        "zone": "global_reference",
         "lat": 36.84,
         "lon": -2.46,
-        "biome": "Semi-Arid Mediterranean Coastal Basin",
         "has_modis_250m": False,
         "has_meteomatics_1km": False,
-        "summary": (
-            "European benchmark for Mediterranean aridification and compound summer heat-drought anomalies."
-        ),
+        "summary": {
+            "en": "Semi-arid Mediterranean coast.",
+            "es": "Costa mediterránea semiárida.",
+        },
     },
 }
 
-GUIDED_CASES: List[Dict[str, Any]] = [
-    {
-        "id": "case_1_enso_dipole",
-        "title": "Case 1 — The South American ENSO Dipole & Opposite Trends",
-        "title_es": "Caso 1 — Dipolo ENSO Sudamericano y Tendencias Opuestas",
-        "badge": "Challenge Core Prompt: Opposite Trends",
-        "primary_region": "EC_Coast_Guayas",
-        "secondary_region": "BR_Amazon_Manaus",
-        "variable": "PRECTOTCORR",
-        "question": "Why does the same global climate driver (El Niño / ENSO) trigger extreme flooding on Ecuador's Pacific Coast while simultaneously driving severe drought in the Central Amazon?",
-        "key_finding": (
-            "Empirical cross-correlation with NOAA's Oceanic Niño Index (ONI, 1981–2025) proves an unmistakable opposite-sign teleconnection: "
-            "during warm El Niño phases, Ecuador's Pacific Coast (EC_Coast_Guayas) experiences intense positive rainfall anomalies "
-            "(r_ONI = +0.21, p < 0.0001; +4.8σ peak in 1997–98), whereas the Central Amazon (BR_Amazon_Manaus) suffers severe rainfall "
-            "and soil moisture deficits (PRECTOTCORR r_ONI = -0.33, GWETROOT r_ONI = -0.42, p < 0.0001) alongside a 45-year secular drying trend (-0.35 mm/day/decade)."
-        ),
-    },
-    {
-        "id": "case_2_multiscale_andes",
-        "title": "Case 2 — Multi-Scale Resolution Detective: Why 55 km Misses Andean Valley Droughts",
-        "title_es": "Caso 2 — Detective Multiescala: Por qué 55 km no ve Sequías Andinas",
-        "badge": "NASA MERRA-2 (55km) + MODIS (250m) + Meteomatics (1km)",
-        "primary_region": "EC_Andes_Paute",
-        "secondary_region": "EC_Andes_Quito",
-        "variable": "GWETROOT",
-        "question": "Why did Ecuador's Paute/Mazar hydroelectric basin suffer catastrophic drought in 2023–2024 even though coarse 55 km global reanalysis shows a slight long-term wetting trend?",
-        "key_finding": (
-            "1) Autocorrelation Trap Caught: Naive OLS on monthly Paute root soil moisture gives p = 0.030 (false positive), "
-            "but lag-1 autocorrelation is r1 = 0.941; after Santer et al. (2000) and Hamed-Rao (1998) correction, p_adj = 0.728 (no secular trend). "
-            "2) Spatial Resolution Trap Solved: A 55 km MERRA-2 grid cell averages the Eastern Cordillera with Pacific/Amazonian moisture, "
-            "whereas 1 km Meteomatics downscaling captures Paute's soil moisture deficit quadrupling from 10.5 mm to 43.2 mm in late 2024, "
-            "corroborated by 250 m NASA Terra MODIS NDVI canopy stress."
-        ),
-    },
-    {
-        "id": "case_3_satellite_splice",
-        "title": "Case 3 — Instrument Breakpoint Detective: Catching a Fake Climate Trend (2001 Sensor Splice)",
-        "title_es": "Caso 3 — Quiebre Instrumental: Falsa Tendencia por Cambio de Satélite (2001)",
-        "badge": "Scientific Validity & Pettitt Change-Point Test",
-        "primary_region": "EC_Coast_Guayas",
-        "secondary_region": "BR_Pantanal",
-        "variable": "ALLSKY_SFC_SW_DWN",
-        "question": "Did surface solar radiation across South America really plummet by -0.24 MJ/m²/day/decade over the last 40 years, or is it a satellite calibration artifact?",
-        "key_finding": (
-            "TerraLens's Pettitt Non-Parametric Change-Point Detector flags an extreme step discontinuity in January 2001 (p = 4.0e-15 in Guayas, "
-            "p = 2.6e-15 in Pantanal). That exact date marks NASA POWER's splice between GEWEX SRB (1984–2000) and CERES SYN1deg (2001–2025). "
-            "When restricted to the homogeneous CERES satellite era (2001–2025), the Guayas trend is +0.00 MJ/m²/day/decade (p = 0.99), "
-            "preventing a major false scientific conclusion."
-        ),
-    },
-    {
-        "id": "case_4_pantanal_compound",
-        "title": "Case 4 — Compound Hydroclimatic Tipping Point in the Brazilian Pantanal",
-        "title_es": "Caso 4 — Punto de Inflexión Compuesto en el Pantanal Brasileño",
-        "badge": "Explainable ML (Isolation Forest + PCA + Acker Outlier Switch)",
-        "primary_region": "BR_Pantanal",
-        "secondary_region": "EC_Galapagos",
-        "variable": "T2M",
-        "question": "Which multivariate drivers explain the post-2019 compound megadrought and heatwave regime in the Pantanal, and does the trend persist if extreme months are excluded?",
-        "key_finding": (
-            "Every hydroclimatic variable in the Pantanal shows a highly significant 45-year trend even after Hamed-Rao autocorrelation correction: "
-            "T2M +0.53 °C/decade, PRECTOTCORR -0.50 mm/day/decade, GWETTOP -0.031/decade, and RH2M -3.07%/decade (all p < 0.0001). "
-            "Using the Acker et al. (2009) Outlier Switch to remove ML-detected extreme months (Isolation Forest top 5%) proves the warming and drying "
-            "is a structural background shift rather than an artifact of isolated outlier months."
-        ),
-    },
-    {
-        "id": "case_5_global_arctic_acker",
-        "title": "Case 5 — Global Benchmark: Arctic Polar Amplification (Alaska) vs. Mississippi Delta",
-        "title_es": "Caso 5 — Referencia Global: Amplificación Ártica (Alaska) vs. Delta del Misisipi",
-        "badge": "Global Reach: Arctic Cryosphere + Acker et al. (2009) USA Site",
-        "primary_region": "US_Arctic_Barrow",
-        "secondary_region": "US_Mississippi_Delta",
-        "variable": "T2M",
-        "question": "How does extreme high-latitude Arctic warming in Utqiaġvik (Barrow, Alaska) compare against the subtropical Mississippi River Delta reference site from Acker et al. (2009)?",
-        "key_finding": (
-            "Demonstrates TerraLens's global scalability across North America: Utqiaġvik, Alaska (71.29°N) exhibits extreme polar amplification "
-            "(+0.579 °C/decade, Hamed-Rao p < 0.0001, Pettitt regime step in 2002-02 of +1.68 °C), nearly 3× faster than Andean nodes (+0.197 °C/decade), "
-            "while simultaneously benchmarking against the Mississippi River Delta (29.15°N) studied in Acker et al. (2009)."
-        ),
-    },
-]
+
+def analysis_start_year(variable: str, requested_start: int, homogeneous_splice: bool) -> int:
+    """
+    First year actually analysed: never before the variable's first year, and after the documented
+    instrument splice when the homogeneity guard is on.
+    """
+    meta = VARIABLES[variable]
+    start = max(requested_start, meta["first_year"])
+    splice = meta["known_splice"]
+    if homogeneous_splice and splice:
+        start = max(start, int(splice["date"][:4]))
+    return start
+
+
+def known_break_date(variable: str) -> Optional[str]:
+    """Documented break date of a variable (YYYY-MM) or None."""
+    splice = VARIABLES[variable]["known_splice"]
+    return splice["date"] if splice else None

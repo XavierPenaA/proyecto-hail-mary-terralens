@@ -1,187 +1,203 @@
-# TerraLens v2.1: Guía Maestra de Arquitectura, Código Fuente y Paper Científico de Referencia
+# TerraLens: guía maestra de arquitectura, método y defensa científica
 
-> **Proyecto:** TerraLens v2.1 — *Multi-Scale Earth System Trend & Explainable ML Detective*
-> **Reto Oficial:** NASA Space Apps Challenge 2026 — *Be An Earth System Trend Detective!*
-> **Equipo:** Proyecto Hail Mary (`@xavierpena` — Xavier Sebastián Peña Avilés, Cuenca, Ecuador)
-> **Garantía de Integridad Empírica (Ley #0):** El 100% de las métricas, pendientes, valores $p$, rupturas estructurales y pesos de Machine Learning provienen de datos satelitales reales y ejecuciones verificables en código. Cero valores inventados o simulados.
-
----
-
-## Índice General
-
-1. [Resumen Ejecutivo (Abstract Estilo Paper)](#1-resumen-ejecutivo-abstract-estilo-paper)
-2. [Mapa Completo del Proyecto: Archivo por Archivo y Qué Hace Cada Módulo](#2-mapa-completo-del-proyecto-archivo-por-archivo-y-qué-hace-cada-módulo)
-3. [Datos Satelitales y Climáticos Reales Utilizados (Fuentes, Resoluciones y Archivos)](#3-datos-satelitales-y-climáticos-reales-utilizados-fuentes-resoluciones-y-archivos)
-4. [Fundamento Matemático y Estadístico (Ecuaciones Exactas en el Código)](#4-fundamento-matemático-y-estadístico-ecuaciones-exactas-en-el-código)
-5. [Arquitectura de Machine Learning (Partición 3-Way Train / Val / Test sobre 55,697 Observaciones)](#5-arquitectura-de-machine-learning-partición-3-way-train--val--test-sobre-55697-observaciones)
-6. [Guía Página por Página de la Interfaz Web (`static/index.html`)](#6-guía-página-por-página-de-la-interfaz-web-staticindexhtml)
-7. [Los Casos de Estudio Científicos Explicados a Fondo (Hipótesis, Datos, Pruebas y Resultados)](#7-los-casos-de-estudio-científicos-explicados-a-fondo-hipótesis-datos-pruebas-y-resultados)
-8. [Auditoría de Verificación Automática (`tests/test_scientific_validity.py`)](#8-auditoría-de-verificación-automática-teststest_scientific_validitypy)
-9. [Manual Visual: Cómo Interpretar Cada Gráfica, Línea, Color y Tabla en la Interfaz](#9-manual-visual-cómo-interpretar-cada-gráfica-línea-color-y-tabla-en-la-interfaz)
-10. [Preguntas Clave de Defensa Científica: Referencias Modernas, Predicción ML y Tiempo Real vs. Caché](#10-preguntas-clave-de-defensa-científicareferencias-modernas-predicción-ml-y-tiempo-real-vs-caché)
+> **Proyecto:** TerraLens — detective de tendencias del sistema Tierra
+> **Reto:** NASA Space Apps Challenge 2026 — *Be An Earth System Trend Detective!*
+> **Equipo:** Proyecto Hail Mary (Ecuador)
+> **Regla de esta guía:** cada número citado sale del motor. Los valores de ejemplo se recalcularon el 14 de noviembre de 2026; si cambian los datos, `pytest tests/test_case_findings.py` avisa qué afirmación dejó de cumplirse.
 
 ---
 
-## 1. Resumen Ejecutivo (Abstract Estilo Paper)
+## Índice
 
-Detectar tendencias reales de largo plazo en series temporales del sistema terrestre presenta cuatro trampas metodológicas clásicas que suelen producir **falsos descubrimientos** en análisis convencionales:
-
-1. **Estacionalidad dominante:** El ciclo anual oculta las anomalías interanuales si no se desestacionaliza correctamente.
-2. **Autocorrelación temporal (persistencia mes a mes $r_1 > 0$):** Viola el supuesto de independencia de la regresión lineal ordinaria (OLS) y de la prueba clásica de Mann-Kendall, inflando artificialmente la significancia estadística (Santer et al., 2000; Hamed & Rao, 1998).
-3. **Sesgo por eventos extremos aislados (Outlier Leverage):** Un único superevento de El Niño (como 1982–83 o 1997–98) cerca del inicio o final de la ventana temporal distorsiona la pendiente paramétrica OLS (Acker et al., 2009).
-4. **Discontinuidades instrumentales satelitales:** El empalme de distintos sensores espaciales (por ejemplo, la transición en enero de 2001 entre los radiómetros ERBE/SRB y los sensores modernos **CERES** en el producto `ALLSKY_SFC_SW_DWN` de NASA POWER) genera saltos de escalón artificiales que parecen tendencias climáticas pero son artefactos de calibración.
-
-**TerraLens v2.1** resuelve estos cuatro problemas integrando un motor estadístico no paramétrico corregido por autocorrelación con una suite de Machine Learning entrenada bajo partición estricta sin fuga de datos (**Train / Validation `1981–2018` + Test Futuro Ciego `2019–2024/2025`**) sobre **55,697 observaciones espacio-temporales** y una arquitectura multiescala (`~55 km` NASA POWER MERRA-2/CERES $\rightarrow$ `1 km` Meteomatics $\rightarrow$ `250 m` NASA Terra MODIS `MOD13Q1 v061` + Microsoft Planetary Computer STAC).
+1. [Resumen](#1-resumen)
+2. [Mapa del proyecto, archivo por archivo](#2-mapa-del-proyecto-archivo-por-archivo)
+3. [Datos usados](#3-datos-usados)
+4. [Fundamento estadístico](#4-fundamento-estadístico)
+5. [Machine learning y su línea base](#5-machine-learning-y-su-línea-base)
+6. [La interfaz, vista por vista](#6-la-interfaz-vista-por-vista)
+7. [Los seis casos guiados](#7-los-seis-casos-guiados)
+8. [Pruebas automáticas](#8-pruebas-automáticas)
+9. [Limitaciones](#9-limitaciones)
+10. [Preguntas de defensa ante el jurado](#10-preguntas-de-defensa-ante-el-jurado)
 
 ---
 
-## 2. Mapa Completo del Proyecto: Archivo por Archivo y Qué Hace Cada Módulo
+## 1. Resumen
 
-Todo el código ejecutable vive dentro de `c:\Users\xavit\Desktop\Sebas\Nasa\terralens\`:
+Una recta ajustada a una serie satelital o de reanálisis puede reportar una tendencia que no existe. TerraLens prueba cada tendencia contra tres trampas:
 
-| Archivo | Rol Principal y Funciones Clave |
+1. **Memoria (autocorrelación).** Si cada mes se parece al anterior, la regresión y el Mann-Kendall clásicos sobrestiman la significancia (Santer et al., 2000; Hamed y Rao, 1998).
+2. **Cambios en los datos.** Un sensor nuevo o nuevos datos de entrada crean un salto que parece cambio climático. En NASA POWER, la irradiancia solar pasa de GEWEX SRB (hasta 2000) a CERES SYN1deg (desde enero de 2001).
+3. **Extremos.** Un El Niño o una sequía enormes cerca de un extremo del registro inclinan la recta (prueba de exclusión de extremos de Acker et al., 2009).
+
+Para 11 regiones y seis variables de NASA POWER (1981–2025), y para cualquier coordenada mediante la sonda en vivo, la app responde en una frase si hay una tendencia real y muestra la evidencia.
+
+---
+
+## 2. Mapa del proyecto, archivo por archivo
+
+| Archivo | Qué hace |
 | :--- | :--- |
-| [api.py](file:///c:/Users/xavit/Desktop/Sebas/Nasa/terralens/api.py) | **Servidor Backend FastAPI.** Expone los endpoints REST (`/api/catalog`, `/api/full-dashboard/{region_id}`, `/api/dipole`, `/api/multiscale`, `/api/live-probe`) y sirve la interfaz web en `/`. |
-| [core/catalog.py](file:///c:/Users/xavit/Desktop/Sebas/Nasa/terralens/core/catalog.py) | **Catálogo Bilingüe (`EN / ES`).** Define las 11 regiones globales (`BENCHMARK_REGIONS`), las 6 variables climáticas (`CORE_VARIABLES`) y los 5 casos de estudio guiados (`GUIDED_CASES`), incluyendo los nombres traducidos al español. |
-| [core/connectors.py](file:///c:/Users/xavit/Desktop/Sebas/Nasa/terralens/core/connectors.py) | **Conectores de Datos Satelitales.** Descarga y cachea en lectura directa (*read-through cache*) NASA POWER (1D y malla 2D de 96 celdas), NOAA ONI, NASA ORNL DAAC MODIS `MOD13Q1` (250 m), Meteomatics (1 km) y Microsoft Planetary Computer STAC v1. |
-| [core/stats_engine.py](file:///c:/Users/xavit/Desktop/Sebas/Nasa/terralens/core/stats_engine.py) | **Motor Estadístico de Grado Publicación.** Implementa: `deseasonalize_acker()`, `ols_trend_santer()`, `mann_kendall_hamed_rao()`, `pettitt_change_point()`, `benjamini_hochberg_fdr()`, `compute_annual_trends()`, `compute_climatology_and_seasonal_trends()` y `synthesize_scientific_verdict()`. |
-| [core/ml_engine.py](file:///c:/Users/xavit/Desktop/Sebas/Nasa/terralens/core/ml_engine.py) | **Motor de Inferencia ML Explicable y Experimento de Acker.** Carga el artefacto pre-entrenado `models/terralens_ml_suite.joblib` (o ejecuta en vivo para sondas nuevas) para generar: consenso de anomalías de 3 modelos (`IsolationForest` + `LocalOutlierFactor` + `Mahalanobis`), proyección PCA 2D + regímenes K-Means, atribución física rezagada (`RandomForest`) y `run_acker_ml_outlier_experiment()`. |
-| [train_models.py](file:///c:/Users/xavit/Desktop/Sebas/Nasa/terralens/train_models.py) | **Pipeline de Entrenamiento Offline Sin Fuga de Datos (3-Way Split).** Estandariza exclusivamente en `1981–2018`, ejecuta `5-Fold TimeSeriesSplit` en `1981–2018` (`Train + Validation`), evalúa en el conjunto futuro bloqueado `2019–2024/2025` (`Locked Test`), calcula importancia por permutación en el Test futuro y guarda `models/terralens_ml_suite.joblib` (`26.68 MB`) + `models/training_manifest.json`. |
-| [static/index.html](file:///c:/Users/xavit/Desktop/Sebas/Nasa/terralens/static/index.html) | **Observatorio Web Interactivo (Frontend Single-Page).** Sistema de diseño 100% bilingüe (`EN / ES`), modo oscuro/claro (`Dark / Light`), 3 tarjetas de síntesis, 4 tarjetas KPI con sparkline vectorial, 7 vistas interactivas, gráficas Chart.js y mapa Leaflet de 96 celdas + 11 nodos globales. |
-| [static/favicon.svg](file:///c:/Users/xavit/Desktop/Sebas/Nasa/terralens/static/favicon.svg) | **Ícono Vectorial Personalizado.** Representa el globo terrestre, la retícula orbital y la curva de tendencia ascendente. |
-| [tests/test_scientific_validity.py](file:///c:/Users/xavit/Desktop/Sebas/Nasa/terralens/tests/test_scientific_validity.py) | **Suite de 6 Pruebas Unitarias Científicas.** Verifica matemáticamente Theil-Sen vs OLS ante outliers, Hamed-Rao vs Mann-Kendall bajo autocorrelación $r_1$, detección exacta de Pettitt, control BH-FDR, consenso ML y reproducibilidad empírica sobre Paute. |
+| `api.py` | Servidor FastAPI. Valida entradas (404/422), traduce fallas externas a 502, limita la sonda a 20 consultas por minuto, comprime con GZip y precalcula todas las regiones al arrancar. Endpoints: `/api/catalog`, `/api/ml-manifest`, `/api/full-dashboard/{region}`, `/api/dipole`, `/api/multiscale`, `/api/live-probe`. |
+| `core/catalog.py` | Periodo de datos, seis variables (nombres y unidades en EN/ES, fuente, empalme documentado, escala del mapa) y 11 regiones con descripciones cualitativas. No contiene cifras escritas a mano. |
+| `core/stats_engine.py` | Desestacionalización, Theil-Sen, Mann-Kendall con Hamed-Rao, OLS con Santer, Pettitt con bootstrap por bloques, prueba del empalme documentado, comparación salto-vs-tendencia (BIC), correlación con ENSO con tamaño efectivo, BH-FDR y veredictos con códigos estables. |
+| `core/ml_engine.py` | Detectores de anomalías (Isolation Forest, LOF, Mahalanobis con χ²), atribución en σ, PCA y K-Means con k elegido por silueta, Random Forest de factores con línea base de persistencia, filas de la prueba de extremos. |
+| `core/analysis_service.py` | Capa con caché (`lru_cache`) que comparten la API y los casos; normaliza los argumentos para que consultas equivalentes compartan resultado. Detecta saltos simultáneos en varias variables. |
+| `core/case_studies.py` | Los seis casos guiados: configuración, pasos del recorrido y el texto del hallazgo, escrito con los números en vivo. |
+| `core/connectors.py` | Lectura de las cachés, consulta en vivo a NASA POWER (con TLS verificado y caché limitada en `data/cache/live/`) y funciones de descarga de MODIS y STAC. |
+| `train_models.py` | Benchmark offline de humedad del suelo con persistencia, nowcast y pronóstico; escribe `models/training_manifest.json`. `--save-model` guarda además el modelo. |
+| `scripts/refresh_satellite_caches.py` | Vuelve a descargar NDVI de MODIS (ventana de píxeles con filtro de calidad) y metadatos STAC. |
+| `static/index.html` | Solo el marcado de la página, con claves de traducción (`data-i18n`) y roles ARIA. |
+| `static/css/app.css` | Estilos y tokens de color para tema claro y oscuro (contraste AA), responsive y movimiento reducido. |
+| `static/js/` | Módulos ES: `main.js` (orquestador), `state.js` (estado y URL compartible), `api.js` (peticiones cancelables), `i18n.js`, `theme.js`, `charts.js`, `labels.js`, `ui.js`, `export.js` y una carpeta `views/` con un módulo por vista. |
+| `static/i18n/en.json`, `es.json` | Todos los textos de la interfaz, con las mismas claves en ambos idiomas. |
+| `static/vendor/` | Chart.js 4.4.1 y Leaflet 1.9.4 copiados para que la demo funcione sin internet. |
+| `tests/` | Suite de `pytest` (sección 8). |
 
 ---
 
-## 3. Datos Satelitales y Climáticos Reales Utilizados (Fuentes, Resoluciones y Archivos)
+## 3. Datos usados
 
-Todos los archivos de datos reales están almacenados en `c:\Users\xavit\Desktop\Sebas\Nasa\terralens\data\cache\` para garantizar respuesta instantánea (`< 50 ms`) y reproducibilidad total offline:
+Todo se lee desde `data/cache/`, así la app funciona sin conexión.
 
-1. **NASA POWER (`MERRA-2` + `CERES SYN1deg` / `SRB`) — Series Mensuales 1981–2025 (45 años, 540 meses):**
-   - **Archivos:** `nasa_power_{REGION_ID}.json` (11 regiones globales: 5 en Ecuador + 2 en Brasil + 1 en Perú + 2 en EE. UU. incluyendo Alaska y Delta del Misisipi + 1 en España).
-   - **Variables (6):** `T2M` (°C), `PRECTOTCORR` (mm/day), `GWETROOT` (humedad radicular 0–1), `ALLSKY_SFC_SW_DWN` (irradiancia solar MJ/m²/day, disponible 1984–2025), `RH2M` (%) y `WS10M` (m/s).
-   - **Variable física derivada (en `connectors.py`):** **Déficit de Presión de Vapor (`VPD`, en `kPa`)**, calculado mediante la ecuación de Tetens a partir de `T2M` y `RH2M`:
-     $$e_s = 0.61078 \exp\left(\frac{17.27 \cdot T}{T + 237.3}\right), \quad \text{VPD} = e_s \cdot \left(1 - \frac{\text{RH}}{100}\right)$$
-2. **NASA POWER Regional 2D Data Cube (`0.5° × 0.625°`, ~55 km) sobre Ecuador:**
-   - **Archivo:** `nasa_power_ecuador_grid.json` (**51,840 registros nodo-mes**).
-   - **Cobertura:** Malla completa de **96 celdas** ($8 \times 12$, Costa, Andes y Amazonía) durante 540 meses (1981–2025).
-3. **NOAA CPC Oceanic Niño Index (`ONI`, ERSSTv5 Niño 3.4):** `noaa_oni_monthly.json` (540 meses, 1981–2025).
-4. **NASA Terra MODIS `MOD13Q1 v061` (`250 m`, `16 días`):** 115 pases satelitales por región entre 2021 y 2025 extraídos de NASA ORNL DAAC (575 pases en total).
-5. **Meteomatics High-Resolution Downscaling (`1 km`, 2023–2024):** `meteomatics_ecuador_series.json` (308 registros quincenales sobre Costa, Sierra Norte, Sierra Sur Paute y Amazonía).
-6. **Microsoft Planetary Computer STAC API v1 (`modis-13Q1-061`):** `planetary_computer_stac.json` (metadatos reales verificables de gránulos satelitales `h10v09` de Terra MODIS).
+| Archivo | Contenido |
+| :--- | :--- |
+| `{REGION}.json` (11 archivos) | Respuesta de NASA POWER: 540 meses (1981–2025) de `T2M`, `PRECTOTCORR`, `GWETROOT`, `GWETTOP`, `ALLSKY_SFC_SW_DWN` (desde 1984) y `RH2M`. Fuentes según la propia API: MERRA-2, GEWEX SRB, CERES SYN1deg. |
+| `ecuador_regional_grid.json` | Malla de 96 celdas (~55 km) sobre Ecuador para `T2M`, `PRECTOTCORR` y `GWETROOT`. |
+| `oni.txt` | Índice Oceánico de El Niño de NOAA CPC. Cada trimestre se asigna a su mes central (DEF → enero). |
+| `nasa_modis_250m_ndvi.json` | NDVI MOD13Q1 (250 m, 16 días), 2021–2025, para cinco regiones; un solo píxel en el punto de cada región. |
+| `meteomatics_1km_ecuador_2023_2024.json` | 77 fotos por región (un día cada 10 días) de un modelo comercial a 1 km, cuatro regiones de Ecuador. |
+| `planetary_computer_stac.json` | Metadatos de gránulos MODIS que contienen cada punto (procedencia). |
+
+`PRECTOTCORR` es la precipitación de MERRA-2 corregida por sesgo, según la definición de la API de NASA POWER.
 
 ---
 
-## 4. Fundamento Matemático y Estadístico (Ecuaciones Exactas en el Código)
+## 4. Fundamento estadístico
 
-En [core/stats_engine.py](file:///c:/Users/xavit/Desktop/Sebas/Nasa/terralens/core/stats_engine.py), cada serie temporal pasa por 5 etapas matemáticas rigurosas:
+### 4.1 Desestacionalización (Acker et al., 2009)
+Para cada mes calendario *m* se calcula la media μ_m y la desviación σ_m:
 
-### 4.1 Desestacionalización Climática (Acker et al., 2009 — Paso 2)
-Para cada mes calendario $m \in \{1, \dots, 12\}$, se calcula la media climatológica $\mu_m$ y la desviación estándar $\sigma_m$:
 $$X'_{y,m} = X_{y,m} - \mu_m, \qquad Z_{y,m} = \frac{X_{y,m} - \mu_m}{\sigma_m}$$
 
-### 4.2 Corrección de Grados de Libertad Efectivos (Santer et al., 2000)
-Sobre los residuos $e_t$ de la regresión OLS se calcula la autocorrelación lag-1 ($r_1$). El tamaño de muestra efectivo es:
+Las anomalías anuales son el promedio de las mensuales de cada año (exigiendo al menos 9 meses). Las estaciones usan años estacionales: diciembre cuenta con el enero–febrero siguiente, y solo entran estaciones completas.
+
+### 4.2 Santer et al. (2000)
+Con la autocorrelación lag-1 *r₁* de los residuos de OLS:
+
 $$n_{\text{eff}} = N \cdot \frac{1 - r_1}{1 + r_1}$$
-En la temperatura (`T2M`) de Paute ($N = 540$ meses), $r_1 = 0.628 \Rightarrow n_{\text{eff}} = 123.2$. El error estándar de OLS se infla por $\sqrt{(N - 2)/(n_{\text{eff}} - 2)}$.
 
-### 4.3 Prueba de Mann-Kendall Modificada de Hamed & Rao (1998) y Pendiente de Theil-Sen (1968)
-- **Estadístico $S$:** $S = \sum_{i=1}^{n-1} \sum_{j=i+1}^{n} \text{sgn}(x_j - x_i)$.
-- **Inflación de varianza de Hamed & Rao (1998):** $\text{Var}^*(S) = \text{Var}(S) \cdot \left[1 + \frac{2}{n(n-1)(n-2)} \sum_{k=1}^{n-1} (n-k)(n-k-1)(n-k-2)\rho_k\right]$.
-- **Pendiente de Theil-Sen:** $\beta_{\text{TS}} = \text{mediana}_{i < j} \left(\frac{x_j - x_i}{t_j - t_i}\right)$, con punto de ruptura del $29.3\%$ frente a valores atípicos extremos.
+El error estándar se infla por √((N − 2)/(n_eff − 2)).
 
-### 4.4 Detección No Paramétrica de Cambio de Régimen de Pettitt (1979)
-Localiza el mes exacto $K_n = \max_\tau |U_{\tau, n}|$ donde la media de la serie da un salto estructural $\Delta = \bar{X}_{\text{después}} - \bar{X}_{\text{antes}}$, con $p \approx 2 \exp\left(\frac{-6 K_n^2}{n^3 + n^2}\right)$.
+### 4.3 Mann-Kendall con Hamed y Rao (1998) y Theil-Sen
+$$S = \sum_{i<j} \operatorname{sgn}(x_j - x_i), \qquad \operatorname{Var}^*(S) = \operatorname{Var}(S)\left[1 + \frac{2}{n(n-1)(n-2)}\sum_k (n-k)(n-k-1)(n-k-2)\,\rho_k\right]$$
 
-### 4.5 Control de Falsos Descubrimientos de Benjamini-Hochberg (BH-FDR, 1995)
-Al evaluar simultáneamente $m = 6$ parámetros en una región, calcula $q_{(i)} = \min_{k \ge i} \left(\frac{m}{k} p_{(k)}\right)$ para eliminar falsos descubrimientos por comparaciones múltiples.
+Solo se suman los rezagos con autocorrelación significativa de los rangos de la serie sin tendencia. La pendiente de Theil-Sen es la mediana de todas las pendientes entre pares.
 
----
+**Veredicto.** Si r₁ > 0,85, la tendencia debe confirmarse también con Santer o con la prueba anual (p < 0,10); si no, el código es `autocorr_rejected`. Después: p de Hamed-Rao < 0,05 → significativa; entre 0,05 y 0,10 → débil; si no → sin tendencia.
 
-## 5. Arquitectura de Machine Learning (Partición 3-Way Train / Val / Test sobre 55,697 Observaciones)
+### 4.4 Pettitt (1979) con bootstrap por bloques
+Pettitt ubica el mes con el mayor cambio de nivel (estadístico K). La fórmula asintótica del p-valor supone meses independientes y produce valores absurdos con series persistentes (p = 7,9 × 10⁻⁴⁵ en Napo). TerraLens calcula el p-valor con un **bootstrap circular por bloques**: remuestrea bloques de longitud (1 + r₁)/(1 − r₁) —el cociente N/n_eff de Santer— para conservar la memoria, 999 veces con semilla fija. El mínimo posible es p = 0,001.
 
-El script [train_models.py](file:///c:/Users/xavit/Desktop/Sebas/Nasa/terralens/train_models.py) entrena dos niveles de modelos con **estricto aislamiento cronológico sin fuga de datos (*zero data leakage*)** y guarda el resultado en `models/terralens_ml_suite.joblib` (`26.68 MB`) + `models/training_manifest.json` (`205.47 s` de ejecución total):
+### 4.5 ¿Salto o tendencia?
+Pettitt no distingue un escalón de una tendencia gradual. Se comparan con BIC un modelo lineal (2 parámetros) y un modelo de dos medias separadas en la fecha de Pettitt (3 parámetros). Si la diferencia supera 10 (evidencia "muy fuerte" según Kass y Raftery, 1995), se prefiere ese modelo; si no, el resultado es "no concluyente". Una tendencia significativa que se explica mejor como un salto recibe la advertencia `step_dominated`.
 
-### Nivel A: Benchmark Supervisado sobre el Cubo Espacio-Temporal (`50,208` observaciones de malla + `5,489` regionales = `55,697` muestras)
+Además:
+- **Empalme documentado:** para la irradiancia solar se prueba directamente la diferencia de medias en 2001-01, con el mismo bootstrap.
+- **Saltos simultáneos:** si tres o más variables tienen su quiebre significativo a menos de dos meses entre sí, la app lo señala, porque suele indicar un cambio en los datos de entrada.
 
-- **Objetivo ($y$):** Predecir la anomalía estandarizada de humedad del suelo en zona radicular (`GWETROOT_z`) a partir de 16 predictores físicos y topográficos (`lat`, `lon`, `elevation_m`, mes senoidal/cosenoidal, precipitación actual y acumulada de 3/6 meses, temperatura, radiación solar y rezagos `lag1`, `lag2`, `lag3`).
-- **Partición Estricta de 3 Etapas (*Train / Validation / Locked Future Test Split*):**
-  1. **Estandarización sin fuga de datos:** Las medias y desviaciones estándar climatológicas ($\mu_m, \sigma_m$) se calculan **exclusivamente sobre `1981–2018`** (nunca tocando el futuro `2019–2025`).
-  2. **Entrenamiento + Validación Cruzada Temporal (`1981–2018`, 43,296 muestras):** Validación `TimeSeriesSplit(n_splits=5)` entrenando siempre en el pasado y evaluando en bloques futuros dentro de `1981–2018`.
-  3. **Test Futuro Ciego (*Locked Unseen Future Test Set*, `2019–2024`, 6,912 muestras):** Los años `2019–2024` permanecen totalmente ocultos hasta evaluar la generalización final y la importancia por permutación (*out-of-sample permutation importance*).
-- **Resultados Reales Verificados (`training_manifest.json`):**
-  1. **`HistGradientBoostingRegressor`:** Val CV (1981–2018) $R^2 = \mathbf{0.9214 \pm 0.0169}$ | **Test Futuro Ciego (2019–2024) $R^2 = \mathbf{0.9191}$**, $\text{RMSE} = 0.2308\sigma$, $\text{MAE} = 0.1700\sigma$.
-  2. **`RandomForestRegressor` (200 árboles):** Val CV $R^2 = \mathbf{0.9073 \pm 0.0241}$ | **Test Futuro $R^2 = \mathbf{0.9019}$**, $\text{RMSE} = 0.2542\sigma$.
-  3. **`GradientBoostingRegressor`:** Val CV $R^2 = \mathbf{0.9151 \pm 0.0196}$ | **Test Futuro $R^2 = \mathbf{0.8989}$**, $\text{RMSE} = 0.2579\sigma$.
-  4. **`RidgeBaseline` (Comparador Lineal):** Val CV $R^2 = \mathbf{0.9147 \pm 0.0224}$ | **Test Futuro $R^2 = \mathbf{0.8907}$**, $\text{RMSE} = 0.2682\sigma$ (demostrando cuantitativamente que el modelado no lineal basado en árboles supera al baseline lineal en el futuro no visto).
+### 4.6 Correlaciones con ENSO
+Se correlaciona la anomalía con el ONI adelantado 0 a 6 meses. El p-valor usa el tamaño efectivo de Bretherton et al. (1999), n_eff = n(1 − r₁ₐ r₁ᵦ)/(1 + r₁ₐ r₁ᵦ), y los siete desfases se corrigen con BH-FDR. El dipolo se declara "opuesto" solo si ambas regiones tienen correlación significativa y de signo contrario.
 
-### Nivel B: Suite ML Regional por Nodo (`11 Regiones` $\times$ `499 meses rezagados` = `5,489` observaciones)
-
-Para cada una de las 11 regiones (entrenando en `1981–2018` [415 meses] y validando en test futuro `2019–2025` [84 meses]):
-1. **Consenso No Supervisado de 3 Detectores (`contaminación = 5%`):**
-   - `IsolationForest(n_estimators=500)` + `LocalOutlierFactor(n_neighbors=20)` + Distancia de `Mahalanobis` ($\chi^2_{6, 0.95}$).
-   - Un mes se marca como anomalía extrema cuando $\ge 2/3$ modelos votan positivo.
-2. **PCA 2D + K-Means con barrido de Silueta ($k \in \{2,3,4,5\}$):** Proyecta los meses en `PC1 × PC2` e identifica regímenes hidroclimáticos físicos.
-3. **Atribución Física con Rezagos (`RandomForestRegressor`):** Cuantifica qué porcentaje de la humedad del suelo radicular es controlado por precipitación acumulada de 3/6 meses, humedad relativa, VPD, radiación o ENSO (`Test R² = 0.899` en Napo Amazon, `0.841` en Pantanal, `0.823` en Mississippi Delta, `0.806` en Manaus, `0.786` en Paute Andes).
+### 4.7 Benjamini-Hochberg (1995)
+$$q_{(i)} = \min_{k \ge i} \frac{m}{k}\, p_{(k)}$$
+Se aplica a las seis variables de una región y a las 96 celdas del mapa (significancia de campo, Wilks 2016).
 
 ---
 
-## 6. Guía Página por Página de la Interfaz Web (`static/index.html`)
+## 5. Machine learning y su línea base
 
-### Barra Superior de Comandos (`.command-bar`)
-- **`Location / Region` (`#regionSelect`):** Cambia entre las 11 regiones globales (en español o inglés).
-- **`Climate Variable` (`#variableSelect`):** Cambia entre las 6 variables satelitales.
-- **`Analysis Period` (`#startYearInput` $\rightarrow$ `#endYearInput`):** Selectores de año inicial y final (`1981–2025`).
-- **Switch 1 — `2001+ Sensor Filter` (`#btnCeresGuard`):** Restringe `ALLSKY_SFC_SW_DWN` a la era homogénea CERES (`2001–2025`) para evitar el salto instrumental de 2001.
-- **Switch 2 — `Filter ML Extremes` (`#btnExcludeExtremes`):** Ejecuta en vivo el experimento de Acker et al. (2009), omitiendo el 5% de meses extremos ML y recalculando todas las pendientes y pruebas de significancia.
-- **Utilidades (`.utility-group`):** `? Guide / Guía`, `🌐 ES / EN` (traducción completa al 100% de toda la aplicación, tablas, gráficas, regiones y casos), `☀ Light / ☾ Dark` y `⬇ CSV`.
+### 5.1 En la app (por región, al momento)
+- **Anomalías:** Isolation Forest (`contamination="auto"`), LOF (`"auto"`) y Mahalanobis con umbral χ² de 6 grados de libertad y p < 0,01. Un mes es anómalo si al menos dos coinciden. Así una región estable puede tener pocas anomalías; antes cada detector marcaba siempre el 5 % por construcción.
+- **Regímenes:** PCA para dibujar y K-Means con k ∈ {2, 3, 4} elegido por silueta; los nombres (húmedo, cálido y seco, etc.) salen de las medias en σ, sin atribuir causas.
+- **Factores de la humedad del suelo:** Random Forest con lluvia, temperatura, humedad, radiación y ONI del mes y rezagados. Se reporta el R² fuera de muestra (TimeSeriesSplit) junto al de **persistencia** (el mes siguiente repite al actual). Ejemplo: en Quito el modelo logra R² = 0,10 y la persistencia 0,89, y la app lo dice.
 
-### Las 7 Vistas del Espacio de Trabajo
-1. **Vista 1 — `Long-Term Trends` (`#tab-trends`):** Anomalía mensual (`#monthlyTrendChart`), verificación anual (`#annualTrendChart`), auditoría simultánea de las 6 variables con `BH-FDR q` (`#fdrScanTableBody`), climatología de 12 meses (`#climatologyChart`) y desglose estacional (`#seasonalTrendsBody`).
-2. **Vista 2 — `Extreme Events & Drivers` (`#tab-ml`):** Espacio `PC1 × PC2` (`#pcaScatterChart`), atribución de rezagos con Random Forest (`#rfImportanceChart`) y tabla de anomalías compuestas con votos individuales y $\pm\sigma$ (`#mlAnomaliesTableBody`).
-3. **Vista 3 — `Model Performance` (`#tab-telemetry`):** Leaderboard de los 4 modelos con **Val CV R² (1981–2018)** y **Unseen Test R² (2019–2024)** (`#cvLeaderboardBody`), importancia por permutación en el Test futuro (`#cubePermChart`) y telemetría de las 11 regiones (`#regionalTelemetryBody`).
-4. **Vista 4 — `Outlier Sensitivity` (`#tab-acker`):** Compara lado a lado pendientes con todos los meses vs. sin extremos ML en las 6 variables (`#ackerBarChart` y `#ackerTableBody`).
-5. **Vista 5 — `Regional Comparison` (`#tab-dipole`):** Compara anomalías estandarizadas `Z-score` entre cualquier par de regiones frente al índice `NOAA ONI` (`#dipoleChart`).
-6. **Vista 6 — `Regional Map & NDVI` (`#tab-multiscale`):** Mapa Leaflet con las **96 celdas de Ecuador (55 km)** + **11 nodos globales de referencia interactivos** + botones de zoom rápido (`Ecuador Grid` / `11 Global Nodes`) y leyenda visual de colores; además de MODIS 250 m (`#modisChart`), Sonda Global en Vivo `(lat, lon)`, Meteomatics 1 km (`#meteomaticsChart`) y tabla STAC (`#stacTableBody`).
-7. **Vista 7 — `How to Use & Guide` (`#tab-guide`):** Manual completo bilingüe en inglés y español.
+### 5.2 Benchmark offline (`train_models.py`)
+Desarrollo 1981–2018 con validación cruzada temporal de 5 pliegues y test 2019–2025; las climatologías se calculan solo con 1981–2018.
 
----
+| Benchmark | Qué usa | Resultado (test R²) |
+| :--- | :--- | :--- |
+| Persistencia | Solo el mes anterior | 0,758 |
+| Nowcast (mejor: HistGB) | Clima del mismo mes + rezagos | 0,925 |
+| Pronóstico a 1 mes (mejor) | Solo datos conocidos 1 mes antes | ≈ 0,79 (+0,03 sobre persistencia) |
+| Pronóstico a 3 meses (mejor) | Solo datos conocidos 3 meses antes | ≈ 0,35 (sin ganancia sobre persistencia) |
 
-## 7. Los Casos de Estudio Científicos Explicados a Fondo
-
-1. **Caso Base Inicial (`EC_Andes_Paute · T2M`):** Calentamiento andino estructural de **`+0.197 °C/década`** ($r_1 = 0.628, n_{\text{eff}} = 123.2, p < 0.0001$), salto de régimen Pettitt en `2002-11` (`+0.53 °C`). Al quitar los 29 extremos ML, la pendiente apenas cambia `-6.3%` (`p < 0.0001`).
-2. **Caso Guiado 1 (`case_1_enso_dipole`):** Dipolo ENSO Sudamericano entre Costa de Ecuador (`EC_Coast_Guayas`, $r_{\text{ONI}} = +0.209$) y Amazonía Central (`BR_Amazon_Manaus`, $r_{\text{ONI}} = -0.329$, tendencia seca `-0.35 mm/day/década, p = 0.0002`).
-3. **Caso Guiado 2 (`case_2_multiscale_andes`):** En Paute `GWETROOT` (`55 km`), OLS ingenuo da falso positivo ($p_{\text{naive}} = 0.0300$), pero $r_1 = 0.941$ corrige el valor real a $p_{\text{Santer}} = 0.7275$. Al bajar a `1 km` Meteomatics, el déficit hídrico salta de `10.5 mm` a `43.2 mm` en 2024, validado por `250 m` Terra MODIS NDVI.
-4. **Caso Guiado 3 (`case_3_satellite_splice`):** Captura el falso enfriamiento solar en Guayas (`p = 1.10e-16` en el salto `1999-05` / transición GEWEX $\rightarrow$ CERES 2001). Al activar el filtro CERES 2001+, la serie `2001–2025` es completamente plana (`p = 0.99`).
-5. **Caso Guiado 4 (`case_4_pantanal_compound`):** Tipping point compuesto en el Pantanal Brasileño (`T2M +0.53 °C/década`, `PRECTOTCORR -0.50 mm/day/década`, `RH2M -3.07%/década`, `p < 0.0001`) que persiste intacto tras excluir los extremos ML.
-6. **Caso Guiado 5 (`case_5_global_arctic_acker`):** Escalabilidad global comparando la amplificación polar ártica en **Utqiaġvik, Alaska (`71.29°N`)** (`+0.579 °C/década, p < 0.0001`, salto Pettitt `2002-02` de `+1.68 °C`) contra el sitio oficial de **Acker et al. (2009) en el Delta del Misisipi, EE. UU.** Demuestra además que en el Ártico el test futuro `2019–2025` arroja $R^2 < 0$ por **cambio de régimen no estacionario del permafrost** fuera de la envolvente `1981–2018`.
+El nowcast puntúa alto porque usa la lluvia del mismo mes y la humedad del mes anterior (la importancia por permutación de `GWET_lag1` es la mayor). No es un pronóstico. Los modelos regionales fallan en el Ártico (R² negativo) porque el suelo congelado casi no varía.
 
 ---
 
-## 8. Auditoría de Verificación Automática (`tests/test_scientific_validity.py`)
+## 6. La interfaz, vista por vista
 
-Comando de ejecución:
-```powershell
-python "c:\Users\xavit\Desktop\Sebas\Nasa\terralens\tests\test_scientific_validity.py"
+- **Barra superior:** región, variable, periodo (mínimo 10 años, sin rangos invertidos), filtro de sensor 2001, quitar meses extremos, modo experto, idioma, tema y CSV con metadatos. La dirección de la página guarda todo para compartir.
+- **Tarjeta de respuesta:** una frase con el veredicto, advertencias (salto, empalme, extremos quitados) y una explicación de la variable y la región.
+- **Tendencias:** serie mensual con Theil-Sen, OLS, escalón de Pettitt y meses anómalos; promedios anuales; las seis variables con q de FDR (columnas extra en modo experto); año normal y tendencias por estación.
+- **Meses extremos:** PCA coloreado por régimen, factores de la humedad del suelo frente a persistencia y tabla de meses anómalos con qué fue inusual.
+- **Sensibilidad a extremos:** tendencias con y sin los meses anómalos.
+- **Comparar dos regiones:** anomalías estandarizadas con el ONI en un segundo eje, correlación con n efectivo y diagnóstico de ENSO y de tendencias.
+- **Mapa y vegetación:** malla con escala divergente centrada en cero y celdas sólidas solo si q < 0,05; NDVI de MODIS (con aviso cuando la región no tiene serie propia); fotos de Meteomatics; procedencia STAC; sonda en vivo (el clic en el mapa consulta solo con el modo sonda activo).
+- **Rendimiento de modelos:** nowcast, pronóstico y modelos regionales, todos frente a persistencia.
+- **Cómo usarlo** y **Acerca de y limitaciones.**
+
+Accesibilidad: navegación con teclado entre vistas, roles ARIA, descripciones en los gráficos, `lang` del documento según el idioma, contraste AA en ambos temas, respeto de `prefers-reduced-motion` y diseño adaptable a tablet y teléfono.
+
+---
+
+## 7. Los seis casos guiados
+
+El texto de cada caso lo genera `core/case_studies.py` con los números del motor. Valores al 14-nov-2026:
+
+1. **Mismo El Niño, lluvia opuesta (Guayas vs. Manaos, precipitación).** La lluvia costera sube con El Niño (r = +0,22, ONI adelantado 1 mes, q = 0,031) y la de Manaos baja (r = −0,33, q ≤ 0,001). Las tendencias no son opuestas: la costa no tiene tendencia significativa (p = 0,81) y Manaos baja 0,356 mm/día por década, aunque se describe mejor como un salto hacia 2002-10.
+2. **La trampa de la autocorrelación (Paute, humedad radicular).** OLS ingenuo da p = 0,030; con r₁ = 0,94 solo hay unos 16 valores independientes; Santer da p = 0,73 y la prueba anual p = 0,22.
+3. **Una tendencia falsa por cambio de sensor (irradiancia solar).** En 1984–2025 la costa parece bajar 0,251 y el Pantanal subir 0,411 MJ/m²/día por década. Ambas series saltan en enero de 2001 (−0,69 y +0,92; p ≤ 0,001); Pettitt marca 1999-05 y 1998-10. En la era CERES la tendencia costera desaparece (p = 0,83) y la del Pantanal se mantiene más pequeña (+0,207, p = 0,046).
+4. **Pantanal: más cálido y más seco.** Temperatura +0,546 °C/década, precipitación −0,437 mm/día/década, humedad superficial −0,034/década y humedad relativa −3,19 %/década; las cuatro sobreviven sin los 27 meses anómalos.
+5. **Calentamiento ártico vs. delta del Misisipi.** Utqiaġvik +0,58 °C/década, 2,2 veces el delta (+0,26). El mayor quiebre ártico es 2002-02 (+1,68 °C), pero salto y tendencia se ajustan casi igual.
+6. **Un salto que parece tendencia (Napo).** Cuatro variables cambian de nivel a menos de dos meses de 2007-08 (precipitación +1,92 mm/día); probablemente un cambio en los datos de entrada. La tendencia de lluvia debe contrastarse con estaciones.
+
+---
+
+## 8. Pruebas automáticas
+
+```bash
+pip install -r requirements-dev.txt
+pytest
 ```
-Las **6 pruebas deterministas** verifican: robustez de Theil-Sen vs OLS (`+25σ`), corrección de Hamed-Rao bajo $\text{AR}(1)$, detección exacta de Pettitt, monotonicidad de `BH-FDR`, precisión 100% del consenso ML de 3 modelos y reproducibilidad empírica sobre `EC_Andes_Paute`.
+
+| Archivo | Qué comprueba |
+| :--- | :--- |
+| `tests/test_stats_engine.py` | Cada método sobre series sintéticas con respuesta conocida: desestacionalización, Mann-Kendall, Hamed-Rao, Santer, Pettitt con bootstrap, empalme, salto-vs-tendencia, n efectivo, DJF y BH-FDR. |
+| `tests/test_api.py` | Contrato de la API, validación (404/422), filtro CERES, compresión y manifiesto con persistencia. |
+| `tests/test_data_integrity.py` | Las cachés están completas y coinciden con el catálogo. |
+| `tests/test_case_findings.py` | Cada afirmación de los casos se cumple con los datos actuales, y ambos idiomas citan los mismos números. |
+| `tests/test_frontend_i18n.py` | Las traducciones tienen las mismas claves y marcadores, y toda clave usada existe. |
 
 ---
 
-## 9. Manual Visual: Cómo Interpretar Cada Gráfica, Línea, Color y Tabla en la Interfaz
+## 9. Limitaciones
 
-- **Tarjetas de Síntesis Superiores:** Muestran `Tendencia Theil-Sen` (velocidad real por década), `Cambio de Régimen Pettitt` (mes exacto de ruptura), `Persistencia r₁ → GL efectivos`, `Valores p ajustados` (`< 0.05` = real, `> 0.05` = ruido) y `Anomalía Pico ML`.
-- **Pestaña 1 (`Trends`):** Si la línea naranja punteada (`OLS`) se desvía de la verde sólida (`Theil-Sen`), los picos extremos están sesgando la regresión clásica. En la tabla `BH-FDR`, solo las filas con punto verde pasaron tanto Hamed-Rao como Benjamini-Hochberg.
-- **Pestaña 2 (`ML`):** Puntos rojos alejados del centro en `PC1 × PC2` son desastres compuestos multivariados. Las barras horizontales suman el peso físico (`%`) de lluvia rezagada, VPD y temperatura sobre la humedad del suelo.
-- **Pestaña 3 (`CV / Model Performance`):** `Val CV R² (1981–18)` mide consistencia histórica por pliegues y `Unseen Test R² (2019–24)` mide generalización ciega en años futuros nunca vistos (`0.9191` en `HistGradientBoostingRegressor`).
-- **Pestaña 4 (`Acker Test`):** Si la barra azul y la verde son casi iguales (`Δ% < 15%`), la tendencia es estructural; si la barra colapsa al quitar los extremos, la tendencia era un espejismo de El Niño.
-- **Pestaña 5 (`Dipole`):** Curva azul subiendo y curva roja bajando cuando la amarilla (`ONI`) sube = dipolo hidroclimático opuesto confirmado.
-- **Pestaña 6 (`Mapa & NDVI`):** Rectángulos de colores = malla de 96 celdas en Ecuador (borde sólido = `p < 0.05`); círculos brillantes = los **11 nodos globales** (haz clic para cargar cualquiera o usa los botones de zoom Ecuador/Global). Cualquier clic sobre tierra o mar ejecuta la sonda en vivo.
+- Celdas de ~55 km (solar ~110 km): un valor mezcla relieves muy distintos en los Andes.
+- MERRA-2 es un reanálisis, no estaciones; los cambios en sus datos de entrada pueden crear saltos.
+- Cada región es un punto. Los de Guayas y Manaos caen sobre ciudades y ríos, así que su NDVI describe agua y zona urbana. Para corregirlo: definir `modis_point` en `core/catalog.py` y ejecutar `scripts/refresh_satellite_caches.py`.
+- Meteomatics son fotos de modelo, no promedios ni observaciones, y solo 2023–2024.
+- Las pruebas describen el periodo analizado; no atribuyen causas.
 
 ---
 
-## 10. Preguntas Clave de Defensa Científica: Referencias Modernas, Predicción ML y Tiempo Real vs. Caché
+## 10. Preguntas de defensa ante el jurado
 
-1. **Referencias Clásicas y Modernas (2019–2025):** Se cita `Acker et al. (2009)` porque es el paper metodológico oficial del reto NASA *Earth System Trend Detective*; se citan `Theil-Sen`, `Hamed-Rao`, `Santer`, `Pettitt` y `BH-FDR` por ser los estimadores estándar exigidos en el **IPCC AR6 WGI (2021/2023, Cap. 11)**; y el diseño de ML y extremos compuestos se respalda en **Zscheischler et al. (2020, *Nature Reviews Earth & Environment*)**, **Reichstein et al. (2019, *Nature*)**, **Camps-Valls et al. (2021)** y **Stackhouse et al. (2024 — NASA POWER 2.4)**.
-2. **Justificación del ML y Predicción:** Combinamos **predicción supervisada espaciotemporal** (generalizando `GWETROOT_z` al test ciego `2019–2024` con $R^2 = 0.9191$ frente a $0.8907$ del modelo lineal Ridge) y **detección no supervisada de consenso** para alimentar la prueba de exclusión de extremos de Acker.
-3. **Tiempo Real vs. Caché Read-Through:** Las 11 regiones y 96 celdas se descargaron desde las APIs reales de la NASA/NOAA/Meteomatics/Planetary Computer y se sirven desde caché local para responder en `< 30 ms` (si falta un archivo, `connectors.py` lo descarga de la API en vivo). Y la **Sonda Global en Vivo** de la Pestaña 6 llama en tiempo real a `power.larc.nasa.gov` para cualquier `(lat, lon)` del planeta.
+1. **"Si la autocorrelación infla los p-valores, ¿por qué confiar en Pettitt?"** Porque su p-valor sale de un bootstrap por bloques que conserva la memoria de la serie, no de la fórmula asintótica.
+2. **"¿Qué aporta el R² de 0,92?"** Es un nowcast: usa el clima del mismo mes. Lo comparamos con persistencia (0,76). Para pronosticar, la ganancia real es de unos 0,03 a un mes y nula a tres meses; lo mostramos así.
+3. **"¿Por qué Alaska tiene R² negativo?"** El suelo congelado casi no cambia; el modelo no sirve ahí y la app lo muestra sin maquillaje.
+4. **"¿El punto de la Amazonía central es selva?"** No: cae sobre Manaos y el río Negro. Lo declaramos y dejamos el script para muestrear cobertura representativa.
+5. **"¿La subida de lluvia en Napo es clima?"** Cuatro variables saltan el mismo mes de 2007; la app lo marca como posible cambio en los datos y pide contrastar con estaciones.
+6. **"¿Cómo sé que los números de la presentación salen de la app?"** Los textos de los casos se generan desde el motor y una prueba automática falla si alguna afirmación deja de cumplirse.
+7. **"¿Por qué Acker et al. (2009)?"** Su análisis de series de clorofila SeaWiFS en costas con influencia de ríos usa anomalías mensuales y anuales y excluye un evento extremo (la crecida del Po de 2000) para probar si la tendencia persiste; TerraLens sigue ese esquema y lo complementa con correcciones por memoria y por cambios en los datos.
