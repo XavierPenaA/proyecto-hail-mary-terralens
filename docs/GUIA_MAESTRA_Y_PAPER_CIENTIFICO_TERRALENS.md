@@ -120,17 +120,17 @@ Se aplica a las seis variables de una región y a las 96 celdas del mapa (signif
 ### 5.1 En la app (por región, al momento)
 - **Anomalías:** Isolation Forest (`contamination="auto"`), LOF (`"auto"`) y Mahalanobis con umbral χ² de 6 grados de libertad y p < 0,01. Un mes es anómalo si al menos dos coinciden. Así una región estable puede tener pocas anomalías; antes cada detector marcaba siempre el 5 % por construcción.
 - **Regímenes:** PCA para dibujar y K-Means con k ∈ {2, 3, 4} elegido por silueta; los nombres (húmedo, cálido y seco, etc.) salen de las medias en σ, sin atribuir causas.
-- **Factores de la humedad del suelo:** Random Forest con lluvia, temperatura, humedad, radiación y ONI del mes y rezagados. Se reporta el R² fuera de muestra (TimeSeriesSplit) junto al de **persistencia** (el mes siguiente repite al actual). Ejemplo: en Quito el modelo logra R² = 0,10 y la persistencia 0,89, y la app lo dice.
+- **Factores de la humedad del suelo.** Random Forest con lluvia, temperatura, humedad, radiación y ONI del mes y rezagados. La climatología se ajusta dentro de cada pliegue de entrenamiento. En Quito, el modelo obtiene R² = −0,02 frente a 0,86 de la línea base de persistencia.
 
 ### 5.2 Benchmark offline (`train_models.py`)
-Desarrollo 1981–2018 con validación cruzada temporal de 5 pliegues y test 2019–2025; las climatologías se calculan solo con 1981–2018.
+El desarrollo de 1981–2018 usa cinco pliegues de meses completos, con climatología estimada solo en el entrenamiento de cada pliegue. La prueba independiente cubre 2019–2025. En el pronóstico a tres meses empieza en marzo para respetar la fecha de emisión más temprana con el modelo ajustado hasta diciembre de 2018.
 
 | Benchmark | Qué usa | Resultado (test R²) |
 | :--- | :--- | :--- |
 | Persistencia | Solo el mes anterior | 0,758 |
-| Nowcast (mejor: HistGB) | Clima del mismo mes + rezagos | 0,925 |
-| Pronóstico a 1 mes (mejor) | Solo datos conocidos 1 mes antes | ≈ 0,79 (+0,03 sobre persistencia) |
-| Pronóstico a 3 meses (mejor) | Solo datos conocidos 3 meses antes | ≈ 0,35 (sin ganancia sobre persistencia) |
+| Nowcast (Ridge, elegido por validación cruzada) | Clima del mismo mes + rezagos | 0,892 |
+| Pronóstico a 1 mes (Ridge) | Solo datos conocidos 1 mes antes | 0,779 (+0,022 sobre persistencia) |
+| Pronóstico a 3 meses (Ridge) | Solo datos conocidos 3 meses antes | 0,349 (+0,006 sobre persistencia) |
 
 El nowcast puntúa alto porque usa la lluvia del mismo mes y la humedad del mes anterior (la importancia por permutación de `GWET_lag1` es la mayor). No es un pronóstico. Los modelos regionales fallan en el Ártico (R² negativo) porque el suelo congelado casi no varía.
 
@@ -195,7 +195,7 @@ pytest
 ## 10. Preguntas de defensa ante el jurado
 
 1. **"Si la autocorrelación infla los p-valores, ¿por qué confiar en Pettitt?"** Porque su p-valor sale de un bootstrap por bloques que conserva la memoria de la serie, no de la fórmula asintótica.
-2. **"¿Qué aporta el R² de 0,92?"** Es un nowcast: usa el clima del mismo mes. Lo comparamos con persistencia (0,76). Para pronosticar, la ganancia real es de unos 0,03 a un mes y nula a tres meses; lo mostramos así.
+2. **"¿Qué aporta el R² de 0,89?"** El nowcast usa el clima del mismo mes. Lo comparamos con persistencia (0,76). La ganancia del pronóstico ronda 0,02 a un mes y queda por debajo de 0,01 a tres meses.
 3. **"¿Por qué Alaska tiene R² negativo?"** El suelo congelado casi no cambia; el modelo no sirve ahí y la app lo muestra sin maquillaje.
 4. **"¿El punto de la Amazonía central es selva?"** No: cae sobre Manaos y el río Negro. Lo declaramos y dejamos el script para muestrear cobertura representativa.
 5. **"¿La subida de lluvia en Napo es clima?"** Cuatro variables saltan el mismo mes de 2007; la app lo marca como posible cambio en los datos y pide contrastar con estaciones.

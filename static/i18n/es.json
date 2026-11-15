@@ -18,7 +18,7 @@
   "nav.cases": "Casos guiados",
 
   "sidebar.benchmark": "Benchmark offline",
-  "sidebar.bestTest": "Mejor R² de test (nowcast)",
+  "sidebar.bestTest": "R² de prueba (nowcast elegido por CV)",
   "sidebar.persistence": "Línea base de persistencia",
 
   "ctrl.region": "Región",

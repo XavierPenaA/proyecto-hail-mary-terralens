@@ -1,7 +1,7 @@
 {
-  "pipeline_version": "TerraLens ML benchmark v2.2",
-  "trained_at_utc": "2026-11-15 00:53:31 UTC",
-  "total_training_seconds": 180.0,
+  "pipeline_version": "TerraLens ML benchmark v2.3",
+  "trained_at_utc": "2026-11-15 03:39:42 UTC",
+  "total_training_seconds": 455.8,
   "library_versions": {
     "scikit-learn": "1.8.0",
     "numpy": "2.3.5",
@@ -16,7 +16,7 @@
       2019,
       2025
     ],
-    "cv": "5-fold TimeSeriesSplit on the development years"
+    "cv": "5 temporal folds grouped by month, with climatology fitted separately in each fold"
   },
   "dataset_summary": {
     "grid_cells": 96,
@@ -36,18 +36,19 @@
       2019,
       2025
     ],
-    "best_model": "HistGradientBoostingRegressor",
+    "test_start_month": "2019-01",
+    "best_model": "RidgeRegression",
     "leaderboard": [
       {
         "model_name": "PersistenceBaseline",
-        "cv_r2_mean": 0.8027,
-        "cv_r2_std": 0.0442,
+        "cv_r2_mean": 0.772,
+        "cv_r2_std": 0.0996,
         "fold_r2_scores": [
-          0.7204,
-          0.8134,
-          0.8151,
-          0.8542,
-          0.8106
+          0.5991,
+          0.7213,
+          0.8316,
+          0.8607,
+          0.8473
         ],
         "test_r2": 0.7577,
         "test_rmse": 0.4187,
@@ -57,131 +58,131 @@
       },
       {
         "model_name": "RidgeRegression",
-        "cv_r2_mean": 0.9141,
-        "cv_r2_std": 0.0225,
+        "cv_r2_mean": 0.8752,
+        "cv_r2_std": 0.0612,
         "fold_r2_scores": [
-          0.8826,
-          0.9157,
-          0.9318,
-          0.9441,
-          0.8963
+          0.7681,
+          0.8509,
+          0.9038,
+          0.9432,
+          0.9102
         ],
         "test_r2": 0.8918,
         "test_rmse": 0.2799,
         "test_mae": 0.205,
-        "train_seconds": 0.02,
+        "train_seconds": 0.06,
         "test_r2_gain_vs_persistence": 0.1341
       },
       {
         "model_name": "RandomForestRegressor",
-        "cv_r2_mean": 0.9079,
-        "cv_r2_std": 0.0245,
+        "cv_r2_mean": 0.8013,
+        "cv_r2_std": 0.0973,
         "fold_r2_scores": [
-          0.8681,
-          0.9011,
-          0.9163,
-          0.9438,
-          0.9101
+          0.7415,
+          0.7346,
+          0.6932,
+          0.922,
+          0.9154
         ],
         "test_r2": 0.9076,
         "test_rmse": 0.2585,
         "test_mae": 0.1896,
-        "train_seconds": 15.58,
+        "train_seconds": 17.79,
         "test_r2_gain_vs_persistence": 0.1499
       },
       {
         "model_name": "HistGradientBoostingRegressor",
-        "cv_r2_mean": 0.921,
-        "cv_r2_std": 0.0174,
+        "cv_r2_mean": 0.8182,
+        "cv_r2_std": 0.0955,
         "fold_r2_scores": [
-          0.8974,
-          0.9208,
-          0.9138,
-          0.9511,
-          0.9221
+          0.7695,
+          0.7617,
+          0.6975,
+          0.9324,
+          0.9299
         ],
         "test_r2": 0.9246,
         "test_rmse": 0.2336,
         "test_mae": 0.1731,
-        "train_seconds": 26.51,
+        "train_seconds": 59.36,
         "test_r2_gain_vs_persistence": 0.1669
       }
     ],
     "permutation_importance": [
       {
         "feature": "GWET_lag1",
-        "importance_mean": 0.7478,
-        "importance_std": 0.0097
+        "importance_mean": 1.046,
+        "importance_std": 0.0146
       },
       {
         "feature": "PREC_z",
-        "importance_mean": 0.133,
-        "importance_std": 0.0011
-      },
-      {
-        "feature": "PREC_lag1",
-        "importance_mean": 0.0316,
+        "importance_mean": 0.1689,
         "importance_std": 0.0013
       },
       {
-        "feature": "PREC_roll3_lag0",
-        "importance_mean": 0.0281,
+        "feature": "T2M_z",
+        "importance_mean": 0.0334,
+        "importance_std": 0.0007
+      },
+      {
+        "feature": "PREC_lag1",
+        "importance_mean": 0.0223,
         "importance_std": 0.0011
       },
       {
-        "feature": "T2M_z",
-        "importance_mean": 0.0234,
-        "importance_std": 0.0007
-      },
-      {
-        "feature": "GWET_lag2",
-        "importance_mean": 0.0158,
-        "importance_std": 0.0006
-      },
-      {
-        "feature": "lat",
-        "importance_mean": 0.0134,
-        "importance_std": 0.0007
-      },
-      {
-        "feature": "cos_m",
-        "importance_mean": 0.012,
-        "importance_std": 0.0007
-      },
-      {
         "feature": "PREC_lag2",
-        "importance_mean": 0.0108,
-        "importance_std": 0.0005
-      },
-      {
-        "feature": "lon",
-        "importance_mean": 0.0079,
-        "importance_std": 0.0003
-      },
-      {
-        "feature": "elev",
-        "importance_mean": 0.0041,
-        "importance_std": 0.0001
-      },
-      {
-        "feature": "sin_m",
-        "importance_mean": 0.0037,
-        "importance_std": 0.0003
-      },
-      {
-        "feature": "T2M_lag2",
-        "importance_mean": 0.0015,
-        "importance_std": 0.0002
+        "importance_mean": 0.0222,
+        "importance_std": 0.001
       },
       {
         "feature": "T2M_lag1",
-        "importance_mean": 0.0012,
-        "importance_std": 0.0002
+        "importance_mean": 0.008,
+        "importance_std": 0.0004
+      },
+      {
+        "feature": "PREC_roll3_lag0",
+        "importance_mean": 0.0053,
+        "importance_std": 0.0007
+      },
+      {
+        "feature": "T2M_lag2",
+        "importance_mean": 0.0028,
+        "importance_std": 0.0003
       },
       {
         "feature": "PREC_lag3",
-        "importance_mean": 0.0012,
+        "importance_mean": 0.0019,
         "importance_std": 0.0002
+      },
+      {
+        "feature": "lon",
+        "importance_mean": 0.0001,
+        "importance_std": 0.0
+      },
+      {
+        "feature": "cos_m",
+        "importance_mean": 0.0001,
+        "importance_std": 0.0
+      },
+      {
+        "feature": "lat",
+        "importance_mean": 0.0,
+        "importance_std": 0.0
+      },
+      {
+        "feature": "elev",
+        "importance_mean": 0.0,
+        "importance_std": 0.0
+      },
+      {
+        "feature": "sin_m",
+        "importance_mean": 0.0,
+        "importance_std": 0.0
+      },
+      {
+        "feature": "GWET_lag2",
+        "importance_mean": -0.0001,
+        "importance_std": 0.0001
       }
     ]
   },
@@ -194,18 +195,19 @@
         2019,
         2025
       ],
+      "test_start_month": "2019-01",
       "best_model": "RidgeRegression",
       "leaderboard": [
         {
           "model_name": "PersistenceBaseline",
-          "cv_r2_mean": 0.8027,
-          "cv_r2_std": 0.0442,
+          "cv_r2_mean": 0.772,
+          "cv_r2_std": 0.0996,
           "fold_r2_scores": [
-            0.7204,
-            0.8134,
-            0.8151,
-            0.8542,
-            0.8106
+            0.5991,
+            0.7213,
+            0.8316,
+            0.8607,
+            0.8473
           ],
           "test_r2": 0.7577,
           "test_rmse": 0.4187,
@@ -215,36 +217,36 @@
         },
         {
           "model_name": "RidgeRegression",
-          "cv_r2_mean": 0.8264,
-          "cv_r2_std": 0.0457,
+          "cv_r2_mean": 0.7952,
+          "cv_r2_std": 0.0897,
           "fold_r2_scores": [
-            0.7487,
-            0.8382,
-            0.855,
-            0.8822,
-            0.8082
+            0.6434,
+            0.7452,
+            0.8544,
+            0.8894,
+            0.8435
           ],
           "test_r2": 0.7793,
           "test_rmse": 0.3996,
           "test_mae": 0.2944,
-          "train_seconds": 0.02,
+          "train_seconds": 0.04,
           "test_r2_gain_vs_persistence": 0.0216
         },
         {
           "model_name": "HistGradientBoostingRegressor",
-          "cv_r2_mean": 0.8069,
-          "cv_r2_std": 0.0428,
+          "cv_r2_mean": 0.7224,
+          "cv_r2_std": 0.1089,
           "fold_r2_scores": [
-            0.7426,
-            0.8099,
-            0.8054,
-            0.8772,
-            0.7993
+            0.6313,
+            0.6461,
+            0.6253,
+            0.8733,
+            0.8362
           ],
           "test_r2": 0.7891,
           "test_rmse": 0.3906,
           "test_mae": 0.2876,
-          "train_seconds": 26.2,
+          "train_seconds": 55.91,
           "test_r2_gain_vs_persistence": 0.0314
         }
       ],
@@ -319,100 +321,101 @@
     {
       "horizon_months": 3,
       "n_dev": 43296,
-      "n_test": 8064,
+      "n_test": 7872,
       "test_period": [
         2019,
         2025
       ],
+      "test_start_month": "2019-03",
       "best_model": "RidgeRegression",
       "leaderboard": [
         {
           "model_name": "PersistenceBaseline",
-          "cv_r2_mean": 0.4471,
-          "cv_r2_std": 0.0634,
+          "cv_r2_mean": 0.4092,
+          "cv_r2_std": 0.1425,
           "fold_r2_scores": [
-            0.3442,
-            0.4403,
-            0.4295,
-            0.4886,
-            0.5331
+            0.1951,
+            0.3,
+            0.4558,
+            0.5069,
+            0.5882
           ],
-          "test_r2": 0.3503,
-          "test_rmse": 0.6856,
-          "test_mae": 0.5265,
-          "train_seconds": 0.02,
+          "test_r2": 0.343,
+          "test_rmse": 0.6894,
+          "test_mae": 0.5297,
+          "train_seconds": 0.01,
           "test_r2_gain_vs_persistence": 0.0
         },
         {
           "model_name": "RidgeRegression",
-          "cv_r2_mean": 0.4353,
-          "cv_r2_std": 0.0727,
+          "cv_r2_mean": 0.4158,
+          "cv_r2_std": 0.1416,
           "fold_r2_scores": [
-            0.2956,
-            0.4676,
-            0.4367,
-            0.4998,
-            0.4767
+            0.1829,
+            0.3275,
+            0.476,
+            0.5292,
+            0.5632
           ],
-          "test_r2": 0.354,
-          "test_rmse": 0.6837,
-          "test_mae": 0.5266,
-          "train_seconds": 0.03,
-          "test_r2_gain_vs_persistence": 0.0037
+          "test_r2": 0.3486,
+          "test_rmse": 0.6865,
+          "test_mae": 0.5287,
+          "train_seconds": 0.04,
+          "test_r2_gain_vs_persistence": 0.0056
         },
         {
           "model_name": "HistGradientBoostingRegressor",
-          "cv_r2_mean": 0.3155,
-          "cv_r2_std": 0.1236,
+          "cv_r2_mean": 0.3147,
+          "cv_r2_std": 0.187,
           "fold_r2_scores": [
-            0.0876,
-            0.3707,
-            0.2862,
-            0.4255,
-            0.4075
+            0.027,
+            0.1967,
+            0.3288,
+            0.4851,
+            0.5361
           ],
-          "test_r2": 0.3015,
-          "test_rmse": 0.7109,
-          "test_mae": 0.5321,
-          "train_seconds": 25.82,
-          "test_r2_gain_vs_persistence": -0.0488
+          "test_r2": 0.2949,
+          "test_rmse": 0.7142,
+          "test_mae": 0.5352,
+          "train_seconds": 53.23,
+          "test_r2_gain_vs_persistence": -0.0481
         }
       ],
       "permutation_importance": [
         {
           "feature": "GWET_lag3",
-          "importance_mean": 0.2313,
-          "importance_std": 0.0092
+          "importance_mean": 0.2222,
+          "importance_std": 0.0062
         },
         {
           "feature": "PREC_lag3",
-          "importance_mean": 0.0799,
-          "importance_std": 0.005
+          "importance_mean": 0.0807,
+          "importance_std": 0.0047
         },
         {
           "feature": "GWET_lag4",
-          "importance_mean": 0.0153,
-          "importance_std": 0.002
+          "importance_mean": 0.0116,
+          "importance_std": 0.0022
         },
         {
           "feature": "PREC_lag5",
           "importance_mean": 0.0019,
-          "importance_std": 0.0003
+          "importance_std": 0.0002
         },
         {
           "feature": "T2M_lag3",
           "importance_mean": 0.0016,
-          "importance_std": 0.0004
+          "importance_std": 0.0002
         },
         {
           "feature": "sin_m",
           "importance_mean": 0.001,
-          "importance_std": 0.0
+          "importance_std": 0.0001
         },
         {
           "feature": "T2M_lag4",
-          "importance_mean": 0.0008,
-          "importance_std": 0.0005
+          "importance_mean": 0.001,
+          "importance_std": 0.0006
         },
         {
           "feature": "lon",
@@ -431,18 +434,18 @@
         },
         {
           "feature": "cos_m",
-          "importance_mean": -0.0001,
+          "importance_mean": -0.0002,
           "importance_std": 0.0
         },
         {
           "feature": "PREC_lag4",
-          "importance_mean": -0.0013,
-          "importance_std": 0.0001
+          "importance_mean": -0.0015,
+          "importance_std": 0.0002
         },
         {
           "feature": "PREC_roll3_lag3",
-          "importance_mean": -0.0085,
-          "importance_std": 0.0013
+          "importance_mean": -0.0091,
+          "importance_std": 0.0007
         }
       ]
     }
@@ -451,10 +454,10 @@
     "EC_Coast_Guayas": {
       "region_id": "EC_Coast_Guayas",
       "n_samples": 499,
-      "driver_cv_r2_mean": 0.7917,
+      "driver_cv_r2_mean": 0.7315,
       "driver_test_r2": 0.5499,
       "driver_test_rmse": 0.331,
-      "persistence_cv_r2": 0.614,
+      "persistence_cv_r2": 0.587,
       "persistence_test_r2": 0.3367,
       "top_drivers": [
         {
@@ -489,15 +492,15 @@
       },
       "optimal_k": 2,
       "best_silhouette": 0.4268,
-      "train_seconds": 6.63
+      "train_seconds": 20.73
     },
     "EC_Andes_Paute": {
       "region_id": "EC_Andes_Paute",
       "n_samples": 499,
-      "driver_cv_r2_mean": 0.7719,
+      "driver_cv_r2_mean": 0.6838,
       "driver_test_r2": 0.7699,
       "driver_test_rmse": 0.2939,
-      "persistence_cv_r2": 0.8352,
+      "persistence_cv_r2": 0.8073,
       "persistence_test_r2": 0.6867,
       "top_drivers": [
         {
@@ -532,15 +535,15 @@
       },
       "optimal_k": 2,
       "best_silhouette": 0.3532,
-      "train_seconds": 6.6
+      "train_seconds": 22.5
     },
     "EC_Andes_Quito": {
       "region_id": "EC_Andes_Quito",
       "n_samples": 499,
-      "driver_cv_r2_mean": -0.0032,
+      "driver_cv_r2_mean": -0.0398,
       "driver_test_r2": 0.3994,
       "driver_test_rmse": 0.4812,
-      "persistence_cv_r2": 0.8699,
+      "persistence_cv_r2": 0.8418,
       "persistence_test_r2": 0.7859,
       "top_drivers": [
         {
@@ -575,15 +578,15 @@
       },
       "optimal_k": 2,
       "best_silhouette": 0.2789,
-      "train_seconds": 6.56
+      "train_seconds": 21.41
     },
     "EC_Amazon_Napo": {
       "region_id": "EC_Amazon_Napo",
       "n_samples": 499,
-      "driver_cv_r2_mean": 0.7649,
+      "driver_cv_r2_mean": 0.6894,
       "driver_test_r2": 0.9003,
       "driver_test_rmse": 0.2408,
-      "persistence_cv_r2": 0.683,
+      "persistence_cv_r2": 0.6347,
       "persistence_test_r2": 0.5949,
       "top_drivers": [
         {
@@ -618,15 +621,15 @@
       },
       "optimal_k": 2,
       "best_silhouette": 0.3784,
-      "train_seconds": 6.71
+      "train_seconds": 21.64
     },
     "EC_Galapagos": {
       "region_id": "EC_Galapagos",
       "n_samples": 499,
-      "driver_cv_r2_mean": 0.2913,
+      "driver_cv_r2_mean": -0.0257,
       "driver_test_r2": 0.3639,
       "driver_test_rmse": 0.1378,
-      "persistence_cv_r2": 0.3695,
+      "persistence_cv_r2": 0.1431,
       "persistence_test_r2": 0.0554,
       "top_drivers": [
         {
@@ -661,15 +664,15 @@
       },
       "optimal_k": 2,
       "best_silhouette": 0.4654,
-      "train_seconds": 6.57
+      "train_seconds": 21.11
     },
     "BR_Amazon_Manaus": {
       "region_id": "BR_Amazon_Manaus",
       "n_samples": 499,
-      "driver_cv_r2_mean": 0.6038,
+      "driver_cv_r2_mean": 0.6073,
       "driver_test_r2": 0.8139,
       "driver_test_rmse": 0.6193,
-      "persistence_cv_r2": 0.6878,
+      "persistence_cv_r2": 0.6678,
       "persistence_test_r2": 0.8678,
       "top_drivers": [
         {
@@ -704,15 +707,15 @@
       },
       "optimal_k": 2,
       "best_silhouette": 0.3544,
-      "train_seconds": 6.28
+      "train_seconds": 22.56
     },
     "BR_Pantanal": {
       "region_id": "BR_Pantanal",
       "n_samples": 499,
-      "driver_cv_r2_mean": 0.7134,
+      "driver_cv_r2_mean": 0.6648,
       "driver_test_r2": 0.8421,
       "driver_test_rmse": 0.156,
-      "persistence_cv_r2": 0.3603,
+      "persistence_cv_r2": 0.3406,
       "persistence_test_r2": 0.3083,
       "top_drivers": [
         {
@@ -747,15 +750,15 @@
       },
       "optimal_k": 2,
       "best_silhouette": 0.3834,
-      "train_seconds": 6.45
+      "train_seconds": 21.99
     },
     "PE_Altiplano": {
       "region_id": "PE_Altiplano",
       "n_samples": 499,
-      "driver_cv_r2_mean": 0.3098,
+      "driver_cv_r2_mean": 0.2806,
       "driver_test_r2": 0.4072,
       "driver_test_rmse": 0.7038,
-      "persistence_cv_r2": 0.727,
+      "persistence_cv_r2": 0.6785,
       "persistence_test_r2": 0.5281,
       "top_drivers": [
         {
@@ -790,15 +793,15 @@
       },
       "optimal_k": 2,
       "best_silhouette": 0.2683,
-      "train_seconds": 6.22
+      "train_seconds": 22.15
     },
     "US_Mississippi_Delta": {
       "region_id": "US_Mississippi_Delta",
       "n_samples": 499,
-      "driver_cv_r2_mean": 0.7686,
+      "driver_cv_r2_mean": 0.7455,
       "driver_test_r2": 0.8211,
       "driver_test_rmse": 0.4014,
-      "persistence_cv_r2": 0.6364,
+      "persistence_cv_r2": 0.6281,
       "persistence_test_r2": 0.6688,
       "top_drivers": [
         {
@@ -833,15 +836,15 @@
       },
       "optimal_k": 2,
       "best_silhouette": 0.2956,
-      "train_seconds": 6.38
+      "train_seconds": 21.29
     },
     "US_Arctic_Barrow": {
       "region_id": "US_Arctic_Barrow",
       "n_samples": 499,
-      "driver_cv_r2_mean": -1.2724,
+      "driver_cv_r2_mean": -1.1245,
       "driver_test_r2": -5.9428,
       "driver_test_rmse": 1.1837,
-      "persistence_cv_r2": 0.7836,
+      "persistence_cv_r2": 0.7588,
       "persistence_test_r2": 0.6265,
       "top_drivers": [
         {
@@ -876,15 +879,15 @@
       },
       "optimal_k": 2,
       "best_silhouette": 0.2592,
-      "train_seconds": 6.73
+      "train_seconds": 22.58
     },
     "ES_Med_Almeria": {
       "region_id": "ES_Med_Almeria",
       "n_samples": 499,
-      "driver_cv_r2_mean": 0.5567,
+      "driver_cv_r2_mean": 0.4131,
       "driver_test_r2": 0.3874,
       "driver_test_rmse": 0.7169,
-      "persistence_cv_r2": 0.2777,
+      "persistence_cv_r2": 0.1741,
       "persistence_test_r2": 0.0086,
       "top_drivers": [
         {
@@ -919,7 +922,7 @@
       },
       "optimal_k": 2,
       "best_silhouette": 0.309,
-      "train_seconds": 6.4
+      "train_seconds": 21.09
     }
   },
   "modis_250m_coupling": {

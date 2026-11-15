@@ -37,7 +37,7 @@ Environmental analysts, hydrologists, water and energy planners, and students wh
 * **Trends:** monthly anomalies, annual means and seasonal subsets (December counted with the following January–February); Theil-Sen slope; Hamed-Rao modified Mann-Kendall and Santer-corrected OLS; Benjamini-Hochberg q-values across variables and across map cells.
 * **Change points:** Pettitt location with a circular block-bootstrap p-value; BIC comparison of a single step versus a gradual trend; a direct test of documented source changes; a warning when several variables shift together.
 * **Anomalies:** Isolation Forest, Local Outlier Factor and Mahalanobis distance, each with a data-driven threshold; a month counts when two agree. The outlier test of Acker et al. (2009) recomputes every trend without those months.
-* **Machine learning, honestly benchmarked:** every model is compared with persistence (next month repeats this month). A nowcast that uses same-month weather reaches test R² = 0.92 versus 0.76 for persistence; a true one-month forecast gains about 0.03 over persistence and a three-month forecast gains nothing.
+* **Machine learning.** We select models using chronological validation by whole month, fit each fold's climatology on its training data, and compare the selected models with persistence on held-out years. Test R² is about 0.89 versus 0.76 for the nowcast. The forecast gains about 0.02 one month ahead and less than 0.01 three months ahead.
 * **Map and probe:** trend map over Ecuador with a diverging scale and FDR-controlled significance, MODIS NDVI, Meteomatics 1 km snapshots and a live NASA POWER probe for any coordinate.
 
 #### Limitations (stated in the app)

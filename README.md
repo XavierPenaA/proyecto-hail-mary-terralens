@@ -52,10 +52,10 @@ The suite checks the statistics on synthetic series with known answers, the API 
 
 ### Machine-learning benchmark
 
-`python train_models.py` evaluates soil-moisture models over the Ecuador grid and the 11 regions (development 1981–2018 with 5-fold `TimeSeriesSplit`, test 2019–2025) and writes `models/training_manifest.json`, shown in the *Model performance* view. Every model is compared with persistence (next month repeats this month):
+`python train_models.py` evaluates soil-moisture models over the Ecuador grid and the 11 regions and writes `models/training_manifest.json` for the *Model performance* view. Five chronological folds group entire months and fit climatology on the training portion of each fold. Model selection uses cross-validation on 1981–2018, followed by evaluation in 2019–2025. The three-month holdout starts in March 2019 so its earliest prediction can use the December 2018 training cutoff.
 
-* **Nowcast** (uses same-month weather): explains the present, so it scores high (test R² ≈ 0.92 vs. 0.76 for persistence).
-* **Forecast** (only data known in advance): about +0.03 R² over persistence one month ahead and no gain three months ahead.
+* **Nowcast** (uses same-month weather). The model selected by cross-validation scores approximately 0.89 on the test period versus 0.76 for persistence.
+* **Forecast** (only data known in advance). The selected models gain about 0.02 R² over persistence one month ahead and less than 0.01 three months ahead.
 * **Regional driver models:** fail in the Arctic (negative R²) and lose to persistence in several regions; the app says so.
 
 `--save-model` also writes the best nowcast model with `joblib` (not committed).

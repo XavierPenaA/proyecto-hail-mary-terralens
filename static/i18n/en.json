@@ -18,7 +18,7 @@
   "nav.cases": "Guided cases",
 
   "sidebar.benchmark": "Offline benchmark",
-  "sidebar.bestTest": "Best test R² (nowcast)",
+  "sidebar.bestTest": "Test R² (CV-selected nowcast)",
   "sidebar.persistence": "Persistence baseline",
 
   "ctrl.region": "Region",

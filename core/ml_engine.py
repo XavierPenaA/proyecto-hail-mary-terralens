@@ -315,6 +315,22 @@ def _persistence_r2(train_y: np.ndarray, train_prev: np.ndarray, test_y: np.ndar
     return float(r2_score(test_y, phi * test_prev))
 
 
+def _driver_table(work: pd.DataFrame) -> pd.DataFrame:
+    return pd.DataFrame(_driver_features(work)).assign(
+        target=work["Z_GWETROOT"], target_prev=work["Z_GWETROOT"].shift(1),
+    ).dropna()
+
+
+def _standardize_driver_fold(work: pd.DataFrame, train_end: int) -> pd.DataFrame:
+    """Fit monthly normals using only the training months; transform both partitions."""
+    raw_columns = [column for column in work.columns if column.startswith("RAW_")]
+    climatology = work.loc[:train_end].groupby("month")[raw_columns]
+    means, stds = climatology.mean(), climatology.std()
+    values = work[raw_columns].to_numpy() - means.reindex(work["month"]).to_numpy()
+    scale = stds.reindex(work["month"]).fillna(1.0).clip(lower=1e-8).to_numpy()
+    return work.assign(**dict(zip([f"Z_{column[4:]}" for column in raw_columns], (values / scale).T)))
+
+
 def run_lagged_driver_random_forest(z_df: pd.DataFrame) -> Dict[str, Any]:
     """
     Random Forest that explains root-zone soil moisture anomalies (Z_GWETROOT) from concurrent
@@ -325,24 +341,30 @@ def run_lagged_driver_random_forest(z_df: pd.DataFrame) -> Dict[str, Any]:
         return {"available": False}
 
     work = z_df.sort_values(["year", "month"]).reset_index(drop=True)
-    features = _driver_features(work)
-    table = pd.DataFrame(features).assign(target=work["Z_GWETROOT"], target_prev=work["Z_GWETROOT"].shift(1)).dropna()
+    table = _driver_table(work)
     if len(table) < 48:
         return {"available": False}
 
-    feat_cols = list(features.keys())
+    feat_cols = list(table.columns[:-2])
     X = table[feat_cols].to_numpy(dtype=float)
     y = table["target"].to_numpy(dtype=float)
-    prev = table["target_prev"].to_numpy(dtype=float)
 
     def _forest(n_estimators: int) -> RandomForestRegressor:
         return RandomForestRegressor(n_estimators=n_estimators, max_depth=6, min_samples_leaf=4, random_state=RANDOM_STATE)
 
     cv_model, cv_persistence = [], []
     for train_idx, test_idx in TimeSeriesSplit(n_splits=CV_SPLITS).split(X):
-        model = _forest(100).fit(X[train_idx], y[train_idx])
-        cv_model.append(float(r2_score(y[test_idx], model.predict(X[test_idx]))))
-        cv_persistence.append(_persistence_r2(y[train_idx], prev[train_idx], y[test_idx], prev[test_idx]))
+        train_dates, test_dates = table.index[train_idx], table.index[test_idx]
+        fold = _driver_table(_standardize_driver_fold(work, int(train_dates[-1])))
+        train, test = fold.loc[fold.index.intersection(train_dates)], fold.loc[fold.index.intersection(test_dates)]
+        if min(len(train), len(test)) < 2:
+            continue
+        model = _forest(100).fit(train[feat_cols].to_numpy(), train["target"].to_numpy())
+        cv_model.append(float(r2_score(test["target"], model.predict(test[feat_cols].to_numpy()))))
+        cv_persistence.append(_persistence_r2(train["target"].to_numpy(), train["target_prev"].to_numpy(),
+                                             test["target"].to_numpy(), test["target_prev"].to_numpy()))
+    if not cv_model:
+        return {"available": False}
 
     rf = _forest(150).fit(X, y)
     ranked = []

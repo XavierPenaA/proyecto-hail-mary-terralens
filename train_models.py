@@ -13,8 +13,8 @@ Benchmarks
 - Regional drivers: per-region Random Forest on concurrent and lagged drivers (no soil-moisture
   lags), the model whose importances the observatory shows.
 
-Splits: monthly climatologies and 5-fold TimeSeriesSplit cross-validation use 1981-2018 only;
-2019 onwards is a held-out test period. The model artifact is saved only with --save-model.
+Splits: cross-validation uses whole months and fits the monthly climatologies on each
+training fold. The final fit uses 1981–2018 and the held-out test uses 2019 onward.
 """
 
 import argparse
@@ -42,6 +42,7 @@ from core.connectors import CACHE_DIR, load_meteomatics_1km_cache, load_noaa_oni
 BASE_DIR = Path(__file__).resolve().parent
 MODELS_DIR = BASE_DIR / "models"
 TRAIN_END_YEAR = 2018
+TRAIN_END_MONTH = f"{TRAIN_END_YEAR}-12"
 TEST_START_YEAR = 2019
 CV_SPLITS = 5
 RANDOM_STATE = 42
@@ -54,10 +55,10 @@ REGION_VARS = ("T2M", "PRECTOTCORR", "GWETROOT", "GWETTOP", "ALLSKY_SFC_SW_DWN",
 # ---------------------------------------------------------------------------
 # Feature engineering
 # ---------------------------------------------------------------------------
-def standardize_on_training_era(df: pd.DataFrame, variables) -> pd.DataFrame:
-    """Monthly z-scores whose mean and std come only from years <= TRAIN_END_YEAR (no leakage)."""
+def standardize_on_training_era(df: pd.DataFrame, variables, train_through: str = TRAIN_END_MONTH) -> pd.DataFrame:
+    """Monthly z-scores fitted only to observations at or before the training cutoff."""
     out = df[["date", "year", "month"]].copy()
-    train = df[df["year"] <= TRAIN_END_YEAR]
+    train = df[df["date"] <= train_through]
     for v in variables:
         means = train.groupby("month")[v].mean()
         stds = train.groupby("month")[v].std(ddof=1).fillna(1.0) + 1e-8
@@ -70,8 +71,8 @@ def add_lags(table: pd.DataFrame, column: str, code: str, lags) -> None:
         table[f"{code}_lag{lag}"] = table[column].shift(lag)
 
 
-def build_grid_cube() -> pd.DataFrame:
-    """One row per grid cell and month with standardized values and lags 1..MAX_LAG."""
+def load_grid_observations() -> pd.DataFrame:
+    """One row of raw values per grid cell and month."""
     grid = json.loads((Path(CACHE_DIR) / "ecuador_regional_grid.json").read_text(encoding="utf-8"))
     cells: Dict[tuple, Dict[str, pd.DataFrame]] = {}
     for variable in GRID_VARS:
@@ -90,7 +91,17 @@ def build_grid_cube() -> pd.DataFrame:
         merged = merged.dropna().sort_values(["year", "month"]).reset_index(drop=True)
         if len(merged) < 120:
             continue
-        z = standardize_on_training_era(merged, GRID_VARS).rename(columns={"PRECTOTCORR_z": "PREC_z", "GWETROOT_z": "GWET_z"})
+        frames.append(merged.assign(lat=lat, lon=lon, elev=elev))
+    return pd.concat(frames, ignore_index=True)
+
+
+def build_grid_cube(observations: pd.DataFrame, train_through: str = TRAIN_END_MONTH) -> pd.DataFrame:
+    """Standardized values and chronological lags per grid cell."""
+    frames = []
+    for (lat, lon, elev), cell in observations.groupby(["lat", "lon", "elev"], sort=False):
+        z = standardize_on_training_era(cell, GRID_VARS, train_through).rename(
+            columns={"PRECTOTCORR_z": "PREC_z", "GWETROOT_z": "GWET_z"}
+        )
         z = z.assign(lat=lat, lon=lon, elev=elev,
                      sin_m=np.sin(2 * np.pi * z["month"] / 12.0), cos_m=np.cos(2 * np.pi * z["month"] / 12.0))
         add_lags(z, "GWET_z", "GWET", range(1, MAX_LAG + 1))
@@ -132,13 +143,35 @@ class PersistenceBaseline:
         return self.phi * X[:, self.lag_column_index]
 
 
-def evaluate(make_model: Callable[[], object], X_dev, y_dev, X_test, y_test) -> Dict[str, object]:
+def build_feature_folds(dates: pd.Series, build: Callable[[str], pd.DataFrame], gap: int = 0) -> list:
+    """Split by target month so all grid cells from the same month share a partition."""
+    months = np.sort(dates.unique())
+    folds = []
+    for train_idx, val_idx in TimeSeriesSplit(n_splits=CV_SPLITS, gap=gap).split(months):
+        train_end = str(months[train_idx[-1]])
+        table = build(train_end)
+        folds.append((table[table["date"] <= train_end],
+                      table[table["date"].between(months[val_idx[0]], months[val_idx[-1]])]))
+    return folds
+
+
+def fold_inputs(folds: list, features: List[str], target: str) -> list:
+    pairs = []
+    for training, validation in folds:
+        train = training.dropna(subset=features + [target])
+        val = validation.dropna(subset=features + [target])
+        pairs.append((train[features].to_numpy(), train[target].to_numpy(),
+                      val[features].to_numpy(), val[target].to_numpy()))
+    return pairs
+
+
+def evaluate(make_model: Callable[[], object], X_dev, y_dev, X_test, y_test, cv_data: list) -> Dict[str, object]:
     """5-fold TimeSeriesSplit on the development years, then a fit on all of them scored on the test years."""
     t0 = time.perf_counter()
     folds = []
-    for train_idx, val_idx in TimeSeriesSplit(n_splits=CV_SPLITS).split(X_dev):
-        model = make_model().fit(X_dev[train_idx], y_dev[train_idx])
-        folds.append(float(r2_score(y_dev[val_idx], model.predict(X_dev[val_idx]))))
+    for X_train, y_train, X_val, y_val in cv_data:
+        model = make_model().fit(X_train, y_train)
+        folds.append(float(r2_score(y_val, model.predict(X_val))))
     model = make_model().fit(X_dev, y_dev)
     pred = model.predict(X_test)
     return {
@@ -153,17 +186,20 @@ def evaluate(make_model: Callable[[], object], X_dev, y_dev, X_test, y_test) -> 
     }
 
 
-def run_benchmark(table: pd.DataFrame, features: List[str], persistence_feature: str,
-                  candidates: Dict[str, Callable[[], object]]) -> Dict[str, object]:
+def run_benchmark(table: pd.DataFrame, folds: list, features: List[str], persistence_feature: str,
+                  candidates: Dict[str, Callable[[], object]], horizon: int = 0) -> Dict[str, object]:
     data = table.dropna(subset=features + ["GWET_z"])
-    dev, test = data[data["year"] <= TRAIN_END_YEAR], data[data["year"] >= TEST_START_YEAR]
+    # A forecast made before the final training month must not be scored by that model.
+    first_test_month = str(pd.Period(TRAIN_END_MONTH, freq="M") + max(1, horizon))
+    dev, test = data[data["year"] <= TRAIN_END_YEAR], data[data["date"] >= first_test_month]
     X_dev, y_dev = dev[features].to_numpy(), dev["GWET_z"].to_numpy()
     X_test, y_test = test[features].to_numpy(), test["GWET_z"].to_numpy()
 
     models = {"PersistenceBaseline": lambda: PersistenceBaseline(features.index(persistence_feature)), **candidates}
+    cv_data = fold_inputs(folds, features, "GWET_z")
     leaderboard, best = [], None
     for name, make_model in models.items():
-        result = evaluate(make_model, X_dev, y_dev, X_test, y_test)
+        result = evaluate(make_model, X_dev, y_dev, X_test, y_test, cv_data)
         model = result.pop("model")
         leaderboard.append({"model_name": name, **result})
         print(f"   {name:28s} CV R2={result['cv_r2_mean']:.4f} (+/-{result['cv_r2_std']:.4f})  test R2={result['test_r2']:.4f}")
@@ -183,6 +219,7 @@ def run_benchmark(table: pd.DataFrame, features: List[str], persistence_feature:
     return {
         "n_dev": int(len(dev)), "n_test": int(len(test)),
         "test_period": [int(test["year"].min()), int(test["year"].max())],
+        "test_start_month": str(test["date"].min()),
         "best_model": best[2], "leaderboard": leaderboard, "permutation_importance": importance,
         "_best_estimator": best[0], "_features": features,
     }
@@ -206,9 +243,9 @@ REGION_DRIVERS = ["PRECTOTCORR_z", "PREC_lag1", "PREC_lag2", "PREC_lag3", "PREC_
                   "RH2M_lag1", "T2M_z", "T2M_lag1", "ALLSKY_SFC_SW_DWN_z", "ONI", "ONI_lag1", "sin_m", "cos_m"]
 
 
-def build_region_table(df: pd.DataFrame, oni_map: Dict[str, float]) -> pd.DataFrame:
+def build_region_table(df: pd.DataFrame, oni_map: Dict[str, float], train_through: str = TRAIN_END_MONTH) -> pd.DataFrame:
     vars_ok = [v for v in REGION_VARS if v in df.columns]
-    t = standardize_on_training_era(df, vars_ok)
+    t = standardize_on_training_era(df, vars_ok, train_through)
     t = t[(t["year"] >= ML_START_YEAR) & (t["year"] <= DATA_END_YEAR)].sort_values(["year", "month"]).reset_index(drop=True)
     add_lags(t, "PRECTOTCORR_z", "PREC", (1, 2, 3))
     add_lags(t, "RH2M_z", "RH2M", (1,))
@@ -222,18 +259,20 @@ def build_region_table(df: pd.DataFrame, oni_map: Dict[str, float]) -> pd.DataFr
     return t.dropna().reset_index(drop=True)
 
 
-def regional_telemetry(region_id: str, table: pd.DataFrame) -> Dict[str, object]:
+def regional_telemetry(region_id: str, df: pd.DataFrame, oni_map: Dict[str, float]) -> Dict[str, object]:
     t0 = time.perf_counter()
+    table = build_region_table(df, oni_map)
     dev, test = table[table["year"] <= TRAIN_END_YEAR], table[table["year"] >= TEST_START_YEAR]
+    folds = build_feature_folds(dev["date"], lambda through: build_region_table(df, oni_map, through))
     target = "GWETROOT_z"
 
     def _forest() -> RandomForestRegressor:
         return RandomForestRegressor(n_estimators=300, max_depth=10, min_samples_leaf=4, random_state=RANDOM_STATE, n_jobs=-1)
 
     model = evaluate(_forest, dev[REGION_DRIVERS].to_numpy(), dev[target].to_numpy(),
-                     test[REGION_DRIVERS].to_numpy(), test[target].to_numpy())
+                     test[REGION_DRIVERS].to_numpy(), test[target].to_numpy(), fold_inputs(folds, REGION_DRIVERS, target))
     persistence = evaluate(lambda: PersistenceBaseline(0), dev[["GWET_lag1"]].to_numpy(), dev[target].to_numpy(),
-                           test[["GWET_lag1"]].to_numpy(), test[target].to_numpy())
+                           test[["GWET_lag1"]].to_numpy(), test[target].to_numpy(), fold_inputs(folds, ["GWET_lag1"], target))
     perm = permutation_importance(model["model"], test[REGION_DRIVERS].to_numpy(), test[target].to_numpy(),
                                   n_repeats=10, random_state=RANDOM_STATE)
     top = sorted(({"feature": f, "importance": round(float(m), 4)} for f, m in zip(REGION_DRIVERS, perm.importances_mean)),
@@ -301,32 +340,38 @@ def run_full_training_pipeline(save_model: bool = False) -> None:
     oni_map = dict(zip(oni["date"], oni["oni"]))
 
     print("[1/4] Building the Ecuador grid cube...")
-    cube = build_grid_cube()
+    observations = load_grid_observations()
+    cube = build_grid_cube(observations)
+    dev_months = cube.loc[cube["year"] <= TRAIN_END_YEAR, "date"]
+    grid_folds = build_feature_folds(dev_months, lambda through: build_grid_cube(observations, through))
     print(f"      {len(cube):,} cell-months, {cube.groupby(['lat', 'lon']).ngroups} cells")
 
     print("[2/4] Nowcast benchmark (uses same-month weather)")
-    nowcast = run_benchmark(cube, nowcast_features(), "GWET_lag1", candidate_models())
+    nowcast = run_benchmark(cube, grid_folds, nowcast_features(), "GWET_lag1", candidate_models())
 
     forecasts = []
     for h in FORECAST_HORIZONS:
         print(f"[3/4] Forecast benchmark t+{h} (only data known {h} month(s) ahead)")
-        result = run_benchmark(cube, forecast_features(h), f"GWET_lag{h}",
-                               {k: v for k, v in candidate_models().items() if k != "RandomForestRegressor"})
+        folds = grid_folds if h == 1 else build_feature_folds(
+            dev_months, lambda through: build_grid_cube(observations, through), gap=h - 1,
+        )
+        result = run_benchmark(cube, folds, forecast_features(h), f"GWET_lag{h}",
+                               {k: v for k, v in candidate_models().items() if k != "RandomForestRegressor"}, horizon=h)
         forecasts.append({"horizon_months": h, **_public(result)})
 
     print("[4/4] Regional driver models")
     region_frames = {rid: load_region_nasa_power(rid)[0] for rid in REGIONS}
-    telemetry = {rid: regional_telemetry(rid, build_region_table(df, oni_map)) for rid, df in region_frames.items()}
+    telemetry = {rid: regional_telemetry(rid, df, oni_map) for rid, df in region_frames.items()}
 
     meteomatics = load_meteomatics_1km_cache()
     modis = json.loads((Path(CACHE_DIR) / "nasa_modis_250m_ndvi.json").read_text(encoding="utf-8"))
     manifest = {
-        "pipeline_version": "TerraLens ML benchmark v2.2",
+        "pipeline_version": "TerraLens ML benchmark v2.3",
         "trained_at_utc": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC"),
         "total_training_seconds": round(time.perf_counter() - t_start, 1),
         "library_versions": {"scikit-learn": sklearn.__version__, "numpy": np.__version__, "pandas": pd.__version__},
         "split": {"development": [int(cube["year"].min()), TRAIN_END_YEAR], "test": [TEST_START_YEAR, int(cube["year"].max())],
-                  "cv": f"{CV_SPLITS}-fold TimeSeriesSplit on the development years"},
+                  "cv": f"{CV_SPLITS} temporal folds grouped by month, with climatology fitted separately in each fold"},
         "dataset_summary": {
             "grid_cells": int(cube.groupby(["lat", "lon"]).ngroups),
             "grid_cell_months": int(len(cube)),
