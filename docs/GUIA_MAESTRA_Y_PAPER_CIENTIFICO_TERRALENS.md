@@ -161,7 +161,7 @@ El desarrollo de 1981–2018 usa cinco pliegues de meses completos, con climatol
 | Pronóstico a 1 mes (Ridge) | Solo datos conocidos 1 mes antes | 0,779 (+0,022 sobre persistencia) |
 | Pronóstico a 3 meses (Ridge) | Solo datos conocidos 3 meses antes | 0,349 (+0,006 sobre persistencia) |
 
-El nowcast puntúa alto porque usa la lluvia del mismo mes y la humedad del mes anterior (la importancia por permutación de `GWET_lag1` es la mayor). No es un pronóstico. Los modelos regionales fallan en el Ártico (R² negativo) porque el suelo congelado casi no varía.
+El nowcast puntúa alto porque usa la lluvia del mismo mes y la humedad del mes anterior (la importancia por permutación de `GWET_lag1` es la mayor). No es un pronóstico. Los modelos regionales fallan en el Ártico (R² negativo); la causa no está aislada (ver pregunta 3 de la sección 10).
 
 ---
 
@@ -225,7 +225,7 @@ pytest
 
 1. **"Si la autocorrelación infla los p-valores, ¿por qué confiar en Pettitt?"** Porque su p-valor sale de un bootstrap por bloques que conserva la memoria de la serie, no de la fórmula asintótica.
 2. **"¿Qué aporta el R² de 0,89?"** El nowcast usa el clima del mismo mes. Lo comparamos con persistencia (0,76). La ganancia del pronóstico ronda 0,02 a un mes y queda por debajo de 0,01 a tres meses.
-3. **"¿Por qué Alaska tiene R² negativo?"** El suelo congelado casi no cambia; el modelo no sirve ahí y la app lo muestra sin maquillaje.
+3. **"¿Por qué Alaska tiene R² negativo?"** No lo sabemos todavía. Descartamos una explosión numérica de los z-scores (la desviación mensual de la humedad de Barrow, 0,05 a 0,08, es igual a la de Quito y el |z| máximo en prueba es 2,2). El suelo estacionalmente congelado es una hipótesis sin contrastar. El modelo no sirve ahí y la app lo muestra sin maquillaje.
 4. **"¿El punto de la Amazonía central es selva?"** No: cae sobre Manaos y el río Negro. Lo declaramos y dejamos el script para muestrear cobertura representativa.
 5. **"¿La subida de lluvia en Napo es clima?"** Cuatro variables saltan el mismo mes de 2007; la app lo marca como posible cambio en los datos y pide contrastar con estaciones.
 6. **"¿Cómo sé que los números de la presentación salen de la app?"** Los textos de los casos se generan desde el motor y una prueba automática falla si alguna afirmación deja de cumplirse.

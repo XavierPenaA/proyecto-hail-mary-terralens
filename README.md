@@ -74,9 +74,12 @@ core/
   case_studies.py          Guided cases and their findings, written from live numbers
   connectors.py            Cached data access, live NASA POWER probe, MODIS/STAC fetchers
 scripts/refresh_satellite_caches.py   Re-downloads MODIS NDVI (quality-filtered window) and STAC metadata
+scripts/calibration_study.py          Monte Carlo false-positive rate and power of the trend verdict and step-vs-trend BIC
+scripts/fetch_era5land.py             Downloads ERA5-Land (Open-Meteo) monthly series for the 11 regions
+scripts/validate_era5land.py          Compares MERRA-2 with ERA5-Land: anomaly correlation, verdicts, slopes, break dates
 static/                    index.html, css/, js/ (ES modules per view), i18n/ (en.json, es.json), vendor/
 tests/                     pytest suite
-data/cache/                Cached NASA POWER, NOAA ONI, MODIS, Meteomatics and STAC data
+data/cache/                Cached NASA POWER, NOAA ONI, MODIS, Meteomatics, STAC and ERA5-Land data
 ```
 
 Adding a language means adding `static/i18n/<lang>.json` with the same keys (a test checks parity) and listing it in `static/js/i18n.js`.

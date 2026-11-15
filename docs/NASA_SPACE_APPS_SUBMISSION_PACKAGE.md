@@ -38,10 +38,12 @@ Environmental analysts, hydrologists, water and energy planners, and students wh
 * **Change points:** Pettitt location with a circular block-bootstrap p-value; BIC comparison of a single step versus a gradual trend; a direct test of documented source changes; a warning when several variables shift together.
 * **Anomalies:** Isolation Forest, Local Outlier Factor and Mahalanobis distance, each with a data-driven threshold; a month counts when two agree. The outlier test of Acker et al. (2009) recomputes every trend without those months.
 * **Machine learning.** We select models using chronological validation by whole month, fit each fold's climatology on its training data, and compare the selected models with persistence on held-out years. Test R² is about 0.89 versus 0.76 for the spatial nowcast (combining concurrent climate with antecedent soil memory). The forecast gains about 0.02 one month ahead and less than 0.01 three months ahead. In the live observatory, regional Random Forest models explicitly isolate purely external atmospheric forcing (excluding soil autoregression) to evaluate true climatic drivers without persistent memory bias.
+* **Calibration.** A Monte Carlo study (1000 trend-free AR(1) series per persistence level, `scripts/calibration_study.py`) showed that Hamed-Rao alone called 11–28% of them significant when month-to-month memory was r₁ ≥ 0.5. The verdict now requires both Hamed-Rao and Santer to agree (false positives 3–6%), the Theil-Sen interval is widened by the effective sample size, and the step-versus-trend BIC uses it too.
+* **Independent check.** Monthly anomalies of MERRA-2 are compared with ERA5-Land in all 11 regions (`scripts/validate_era5land.py`). Temperature agrees (median r = 0.89). Soil moisture agrees poorly (median r = 0.41) and its trends are not reproduced, e.g. Napo rises in MERRA-2 and falls in ERA5-Land. This is agreement between two reanalyses, not error against observations; SMAP is pending.
 * **Map and probe:** trend map over Ecuador with a diverging scale and FDR-controlled significance, MODIS NDVI, Meteomatics 1 km snapshots and a live NASA POWER probe for any coordinate.
 
 #### Limitations (stated in the app)
-~55 km cells (solar ~110 km); reanalysis rather than stations; one point per region (the Guayas and Manaus points fall on cities and rivers); Meteomatics values are 2023–2024 model snapshots; the soil-moisture models fail in the Arctic, where frozen soil hardly changes.
+~55 km cells (solar ~110 km); reanalysis rather than stations; one point per region (the Guayas and Manaus points fall on cities and rivers); Meteomatics values are 2023–2024 model snapshots; the soil-moisture models fail in the Arctic (negative test R²) for a reason we have not isolated; and ERA5-Land, an independent reanalysis, confirms MERRA-2 temperature trends but not its soil-moisture trends (see the validation below).
 
 ### 6. Data and tools
 1. **NASA POWER** monthly point and regional API: MERRA-2 temperature, humidity, soil wetness and bias-corrected precipitation; GEWEX SRB and CERES SYN1deg solar irradiance (1981–2025).
@@ -49,7 +51,8 @@ Environmental analysts, hydrologists, water and energy planners, and students wh
 3. **NOAA CPC Oceanic Niño Index.**
 4. **Meteomatics** (Space Apps partner): 1 km downscaled snapshots, 2023–2024.
 5. **Microsoft Planetary Computer STAC:** MODIS granule metadata for provenance.
-6. **Reference method:** Acker, J. G., McMahon, E., Shen, S., Hearty, T., & Casey, N. (2009). *Time-series analysis of remotely-sensed SeaWiFS chlorophyll in river-influenced coastal regions.* NASA NTRS 20090042747.
+6. **ERA5-Land** (Copernicus Climate Change Service / ECMWF) through the Open-Meteo historical API (CC BY 4.0): monthly temperature and soil moisture used as an independent check of MERRA-2.
+7. **Reference method:** Acker, J. G., McMahon, E., Shen, S., Hearty, T., & Casey, N. (2009). *Time-series analysis of remotely-sensed SeaWiFS chlorophyll in river-influenced coastal regions.* NASA NTRS 20090042747.
 
 ### 7. AI disclosure
 All statistics and models run deterministically on the cached data with fixed random seeds. AI coding assistants were used for software engineering, interface work, testing and documentation. No NASA logos are used.

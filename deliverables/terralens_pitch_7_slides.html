@@ -4,9 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>TerraLens — NASA Space Apps 2026 Pitch Deck (7 Slides)</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <style>
     :root {
       --bg: #070b12;
@@ -313,6 +310,126 @@
       }
     }
   </style>
+  <style id="observatory-layer">
+    /* TerraLens "Orbital Observatory" layer: same fonts, tokens and component language as
+       static/css/premium.css, so the deck reads as a capture of the live product. */
+    @font-face { font-family: 'Instrument Sans'; src: url('../static/fonts/instrument-sans-extended.woff2') format('woff2'); font-weight: 400 700; font-display: block;
+      unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+    @font-face { font-family: 'Instrument Sans'; src: url('../static/fonts/instrument-sans.woff2') format('woff2'); font-weight: 400 700; font-display: block;
+      unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: 'IBM Plex Mono'; src: url('../static/fonts/ibm-plex-mono-regular.woff2') format('woff2'); font-weight: 400; font-display: block; }
+    @font-face { font-family: 'IBM Plex Mono'; src: url('../static/fonts/ibm-plex-mono-semibold.woff2') format('woff2'); font-weight: 600 700; font-display: block; }
+
+    :root {
+      --bg: #04070e;
+      --surface: rgb(13 21 35 / 0.74);
+      --surface-2: #111c2f;
+      --border: rgb(140 175 235 / 0.13);
+      --border-strong: rgb(140 175 235 / 0.28);
+      --ink: #eef4ff;
+      --ink-2: #bccae0;
+      --muted: #93a6c2;
+      --accent: #4be3f0;
+      --accent-text: #8cf1f8;
+      --accent-soft: rgb(75 227 240 / 0.1);
+      --accent-border: rgb(75 227 240 / 0.38);
+      --violet: #9a86ff;
+      --emerald: #5cf0ae;
+      --amber: #ffc176;
+      --rose: #ff7d9d;
+      --sans: 'Instrument Sans', 'Segoe UI', system-ui, sans-serif;
+      --mono: 'IBM Plex Mono', ui-monospace, monospace;
+      --radius: 16px;
+      --sheen: linear-gradient(180deg, rgb(160 200 255 / 0.05), transparent 38%);
+      --card-shadow: 0 1px 0 rgb(255 255 255 / 0.05) inset, 0 18px 40px -22px rgb(0 4 14 / 0.9);
+    }
+
+    html, body { background: #02040a; font-feature-settings: 'ss01', 'cv11'; text-rendering: optimizeLegibility; }
+
+    /* Night-sky slide: aurora washes (same stops as the app) and a seeded star field. */
+    .slide, .slide-cover {
+      background:
+        radial-gradient(38% 34% at 78% 12%, rgb(40 210 235 / 0.16), transparent 70%),
+        radial-gradient(34% 38% at 12% 88%, rgb(120 90 255 / 0.15), transparent 70%),
+        radial-gradient(30% 26% at 92% 82%, rgb(255 150 90 / 0.07), transparent 70%),
+        var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+    }
+    .slide-cover {
+      background:
+        radial-gradient(46% 46% at 80% 26%, rgb(40 210 235 / 0.2), transparent 72%),
+        radial-gradient(38% 42% at 8% 92%, rgb(120 90 255 / 0.2), transparent 70%),
+        radial-gradient(30% 26% at 94% 86%, rgb(255 150 90 / 0.09), transparent 70%),
+        var(--bg);
+    }
+    .slide > * { position: relative; z-index: 1; }
+    .slide > .fx-stars { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; pointer-events: none; }
+
+    /* Header: logo tile + hairline that fades out, like the sidebar brand block */
+    .slide-top { position: relative; border-bottom: 0; padding-bottom: 14px; }
+    .slide-top::after {
+      content: ''; position: absolute; inset: auto 0 0; height: 1px;
+      background: linear-gradient(90deg, var(--accent-border), var(--border) 40%, transparent);
+    }
+    .brand-mark { font-size: 15px; letter-spacing: -0.03em; gap: 11px; }
+    .brand-dot {
+      width: 26px; height: 26px; border-radius: 8px; background: url('../static/favicon.svg') center / cover no-repeat;
+      box-shadow: 0 0 0 1px var(--accent-border), 0 8px 22px -8px var(--accent);
+    }
+    .slide-tag {
+      font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted);
+    }
+    .slide-top .slide-tag {
+      padding: 6px 11px; border-radius: 999px; border: 1px solid var(--accent-border);
+      background: var(--accent-soft); color: var(--accent-text);
+    }
+    .slide-foot { border-top: 0; position: relative; padding-top: 12px; }
+    .slide-foot::before {
+      content: ''; position: absolute; inset: 0 0 auto; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border) 60%, var(--accent-border));
+    }
+    .slide-foot .slide-tag { text-transform: none; letter-spacing: 0.02em; }
+
+    .slide-h1 { letter-spacing: -0.035em; }
+    .slide-h1, .slide-h2 { text-wrap: balance; }
+
+    /* Instrument panels */
+    .card, .screen-frame {
+      background: var(--sheen), var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--card-shadow);
+    }
+    .screen-frame { border-color: var(--border-strong); padding: 7px; box-shadow: var(--card-shadow), 0 0 0 1px rgb(75 227 240 / 0.06); }
+    .screen-frame img { border-radius: 11px; }
+    .card-accent, .card-rose, .card-amber, .card-emerald { border-left: 1px solid var(--border); }
+    .card-accent  { box-shadow: var(--card-shadow), inset 3px 0 0 var(--accent); }
+    .card-rose    { box-shadow: var(--card-shadow), inset 3px 0 0 var(--rose); }
+    .card-amber   { box-shadow: var(--card-shadow), inset 3px 0 0 var(--amber); }
+    .card-emerald { box-shadow: var(--card-shadow), inset 3px 0 0 var(--emerald); }
+    .card-title { letter-spacing: -0.02em; }
+    .mono-stat { font-weight: 600; text-shadow: 0 0 24px rgb(75 227 240 / 0.28); }
+    .stat-label, .screen-caption { color: var(--muted); }
+    .screen-caption { font-size: 11px; letter-spacing: 0.01em; }
+
+    table.clean-table th {
+      font-family: var(--mono); font-weight: 400; font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase;
+      border-bottom: 1px solid var(--border-strong);
+    }
+    table.clean-table td { border-bottom: 1px solid var(--border); }
+
+    .pill { white-space: nowrap; border-radius: 999px; background: var(--accent-soft); border: 1px solid var(--accent-border); color: var(--accent-text); letter-spacing: 0.03em; }
+
+    .deck-toolbar { background: rgb(10 17 30 / 0.92); border: 1px solid var(--border-strong); }
+    .deck-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    @media print {
+      html, body { background: var(--bg); }
+      .slide, .slide-cover { border: 0; border-radius: 0; }
+      .card, .screen-frame { backdrop-filter: none; }
+    }
+  </style>
 </head>
 <body>
   <div class="deck-toolbar">
@@ -345,7 +462,7 @@
         </div>
         <div class="screen-frame">
           <img src="assets/app_trends.png" alt="TerraLens Historical Trends Workspace" />
-          <div class="screen-caption" data-en="Live observatory · a one-sentence answer for any region and variable (Paute, Andes: +0.197 °C/decade, p &lt; 0.0001)" data-es="Observatorio en vivo · una respuesta en una frase para cualquier región y variable (Paute, Andes: +0.197 °C/década, p &lt; 0.0001)">Live observatory · a one-sentence answer for any region and variable (Paute, Andes: +0.197 °C/decade, p &lt; 0.0001)< 0.0001)</div>
+          <div class="screen-caption" data-en="Live observatory · a one-sentence answer for any region and variable (Altiplano, Peru: +0.248 °C/decade, p &lt; 0.0001; confirmed by ERA5-Land)" data-es="Observatorio en vivo · una respuesta en una frase para cualquier región y variable (Altiplano, Perú: +0.248 °C/década, p &lt; 0.0001; confirmado por ERA5-Land)">Live observatory · a one-sentence answer for any region and variable (Altiplano, Peru: +0.248 °C/decade, p &lt; 0.0001; confirmed by ERA5-Land)</div>
         </div>
       </div>
 
@@ -390,7 +507,7 @@
       </div>
 
       <div class="slide-foot">
-        <span data-en="Verified against real 1981–2025 NASA POWER observations" data-es="Verificado con observaciones reales NASA POWER 1981–2025">Verified against real 1981–2025 NASA POWER observations</span>
+        <span data-en="Checked on 1981–2025 NASA POWER data (MERRA-2 reanalysis), cross-checked with ERA5-Land" data-es="Verificado con datos NASA POWER 1981–2025 (reanálisis MERRA-2), contrastados con ERA5-Land">Checked on 1981–2025 NASA POWER data (MERRA-2 reanalysis), cross-checked with ERA5-Land</span>
         <span class="slide-tag">02 / 07</span>
       </div>
     </section>
@@ -635,6 +752,28 @@
   </main>
 
   <script>
+
+    (function addStarField() {
+      let seed = 20261115;
+      const rand = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+      document.querySelectorAll('.slide').forEach((slide) => {
+        const ns = 'http://www.w3.org/2000/svg';
+        const svg = document.createElementNS(ns, 'svg');
+        svg.setAttribute('class', 'fx-stars');
+        svg.setAttribute('viewBox', '0 0 1280 720');
+        svg.setAttribute('aria-hidden', 'true');
+        for (let i = 0; i < 90; i += 1) {
+          const c = document.createElementNS(ns, 'circle');
+          c.setAttribute('cx', (rand() * 1280).toFixed(1));
+          c.setAttribute('cy', (rand() * 720).toFixed(1));
+          c.setAttribute('r', (0.5 + rand() * 1.1).toFixed(2));
+          c.setAttribute('fill', 'rgb(205 225 255)');
+          c.setAttribute('opacity', (0.12 + rand() * 0.5).toFixed(2));
+          svg.appendChild(c);
+        }
+        slide.insertBefore(svg, slide.firstChild);
+      });
+    })();
     let DECK_LANG = 'en';
     function toggleDeckLang(force = null) {
       DECK_LANG = force ? force : (DECK_LANG === 'en' ? 'es' : 'en');

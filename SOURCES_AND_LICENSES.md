@@ -12,6 +12,7 @@ TerraLens's own code, documentation and visuals are licensed under the **Apache 
 | **MODIS MOD13Q1 v061 NDVI** | NASA ORNL DAAC (MODIS/VIIRS subsets web service) | 250 m, 16-day NDVI, 2021–2025, for five regions | NASA Earthdata open data policy | https://modis.ornl.gov/data/modis_webservice.html |
 | **Planetary Computer STAC** (`modis-13Q1-061` collection) | Microsoft | Granule metadata shown as provenance | Planetary Computer terms of use | https://planetarycomputer.microsoft.com/ |
 | **Oceanic Niño Index (ONI)** | NOAA Climate Prediction Center | Monthly ENSO index for correlations and event context | U.S. Government public domain | https://www.cpc.ncep.noaa.gov/data/indices/oni.ascii.txt |
+| **ERA5-Land** (ECMWF reanalysis, Copernicus Climate Change Service) via the **Open-Meteo** historical API | ECMWF / Copernicus C3S; Open-Meteo | Independent check of the MERRA-2 temperature and soil-moisture anomalies (`scripts/fetch_era5land.py`, cached monthly in `data/cache/era5land_monthly.json`). Precipitation was not returned and the Altiplano soil-moisture cell is constant, so both are excluded | Open-Meteo data: CC BY 4.0, attribution to Open-Meteo.com required; ERA5-Land contains modified Copernicus Climate Change Service information (license: Copernicus products licence) | https://open-meteo.com/en/docs/historical-weather-api · https://doi.org/10.24381/cds.e2161bac |
 | **Meteomatics Weather API** | Meteomatics AG (NASA Space Apps partner offer) | 1 km downscaled snapshots for four Ecuadorian regions, 2023–2024 | Partner-offer terms. **To verify:** whether the terms allow redistributing the cached file in a public repository | https://www.meteomatics.com/en/weather-api/ |
 
 ## 2. Software
@@ -43,6 +44,7 @@ TerraLens's own code, documentation and visuals are licensed under the **Apache 
 7. **Bretherton, C. S., et al. (1999).** The effective number of spatial degrees of freedom of a time-varying field. *Journal of Climate*, 12(7), 1990–2009. Effective sample size for correlations.
 8. **Kass, R. E., & Raftery, A. E. (1995).** Bayes factors. *JASA*, 90(430), 773–795. BIC evidence thresholds for the step-versus-trend check.
 9. **Wilks, D. S. (2016).** "The stippling shows statistically significant grid points". *BAMS*, 97(12), 2263–2273. Field significance on the map.
+10. **Muñoz-Sabater, J., et al. (2021).** ERA5-Land: a state-of-the-art global reanalysis dataset for land applications. *Earth System Science Data*, 13(9), 4349–4383. Independent reanalysis used to check MERRA-2.
 
 ## 4. Team and AI disclosure
 

@@ -18,10 +18,12 @@ DELIVERABLES = Path(__file__).resolve().parent
 ASSETS = DELIVERABLES / "assets"
 DECK = DELIVERABLES / "terralens_pitch_7_slides.html"
 IDLE = "() => document.getElementById('loadingIndicator').style.display === 'none'"
+# The observatory animates its counters and charts; wait until they stop before the screenshot.
+ANIMATION_SETTLE_MS = 2600
 
 # screenshot file -> (query string, ready element, panel to frame, animation wait in ms)
 SHOTS = {
-    "app_trends.png": ("?lang=en&theme=dark", "#answerText:not(:empty)", "#answerCard", 600),
+    "app_trends.png": ("?lang=en&theme=dark&region=PE_Altiplano", "#answerText:not(:empty)", "#answerCard", 600),
     "app_acker.png": ("?lang=en&theme=dark&region=BR_Pantanal&tab=tab-acker", "#ackerTableBody tr", "#tab-acker", 800),
     "app_telemetry.png": ("?lang=en&theme=dark&tab=tab-telemetry", "#cvLeaderboardBody tr", "#tab-telemetry", 800),
     "app_dipole.png": ("?lang=en&theme=dark&tab=tab-dipole", "#dipoleSummaryStrip .kpi-card", "#tab-dipole", 1500),
@@ -40,7 +42,7 @@ def capture(browser, base_url: str) -> list:
         page.wait_for_selector(selector, timeout=120000)
         page.wait_for_function(IDLE, timeout=60000)
         page.locator(panel).evaluate("(panel) => panel.scrollIntoView({block: 'start', behavior: 'instant'})")
-        page.wait_for_timeout(wait_ms)
+        page.wait_for_timeout(wait_ms + ANIMATION_SETTLE_MS)
         page.screenshot(path=str(ASSETS / name))
         print("captured", name)
     page.close()

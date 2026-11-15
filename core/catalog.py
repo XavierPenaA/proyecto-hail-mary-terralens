@@ -264,8 +264,8 @@ REGIONS: Dict[str, Dict[str, Any]] = {
         "has_modis_250m": False,
         "has_meteomatics_1km": False,
         "summary": {
-            "en": "Arctic tundra; frozen soil keeps soil-wetness variables nearly constant for months.",
-            "es": "Tundra ártica; el suelo congelado mantiene casi constante la humedad del suelo durante meses.",
+            "en": "Arctic tundra with seasonally frozen ground and permafrost.",
+            "es": "Tundra ártica con suelo estacionalmente congelado y permafrost.",
         },
     },
     "ES_Med_Almeria": {

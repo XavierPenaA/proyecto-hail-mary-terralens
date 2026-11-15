@@ -4,7 +4,7 @@ import os
 import sys
 import subprocess
 import cv2
-import imageio_ffmpeg
+import shutil
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
@@ -17,16 +17,18 @@ FPS = 30
 TOTAL_FRAMES = 900  # Exact 30.00 seconds
 
 # Deliberate Orbital Observatory Palette (BGR for OpenCV, RGB for PIL)
-BG_RGB = (7, 11, 18)
-SURFACE_RGB = (15, 23, 38)
-SURFACE2_RGB = (21, 32, 52)
-INK_RGB = (244, 247, 251)
-MUTED_RGB = (148, 163, 184)
-GRID_RGB = (22, 34, 54)
-ACCENT_RGB = (56, 189, 248)     # Sky Cyan
-EMERALD_RGB = (16, 185, 129)    # Signal Emerald
-AMBER_RGB = (245, 158, 11)      # Breakpoint Amber
-ROSE_RGB = (244, 63, 94)        # Trap / Alert Rose
+BG_RGB = (4, 7, 14)             # --bg-canvas
+SURFACE_RGB = (14, 22, 36)      # --bg-surface over the canvas
+SURFACE2_RGB = (17, 28, 47)     # --bg-elevated
+BORDER_RGB = (36, 52, 82)       # --border-subtle over the surface
+INK_RGB = (238, 244, 255)       # --text-primary
+MUTED_RGB = (147, 166, 194)     # --text-tertiary
+GRID_RGB = (18, 29, 48)
+ACCENT_RGB = (75, 227, 240)     # --accent (aurora cyan)
+EMERALD_RGB = (92, 240, 174)    # --status-green
+AMBER_RGB = (255, 193, 118)     # --status-amber
+ROSE_RGB = (255, 125, 157)      # --status-rose
+VIOLET_RGB = (154, 134, 255)    # --accent-2
 
 
 def bgr(rgb: tuple) -> tuple:
@@ -60,12 +62,14 @@ def load_font(size: int, bold: bool = False, mono: bool = False) -> ImageFont.Fr
 
 
 def load_benchmark() -> dict:
-    """Nowcast and persistence test R² from the benchmark manifest written by train_models.py."""
+    """Nowcast and persistence test R², and the grid cell-month count, from the manifest written by train_models.py."""
     manifest_path = os.path.join(os.path.dirname(BASE_DIR), "models", "training_manifest.json")
     with open(manifest_path, "r", encoding="utf-8") as f:
-        nowcast = json.load(f)["nowcast_benchmark"]
+        manifest = json.load(f)
+    nowcast = manifest["nowcast_benchmark"]
     board = {row["model_name"]: row for row in nowcast["leaderboard"]}
     return {
+        "cell_months": manifest["dataset_summary"]["grid_cell_months"],
         "nowcast_r2": board[nowcast["best_model"]]["test_r2"],
         "persistence_r2": board["PersistenceBaseline"]["test_r2"],
     }
@@ -84,18 +88,42 @@ def ease_in_out(t: float) -> float:
     return t * t * (3.0 - 2.0 * t)
 
 
+def build_backdrop() -> np.ndarray:
+    """Night sky of the observatory: three aurora washes (premium.css --aurora-a/b/c) and fixed stars."""
+    yy, xx = np.mgrid[0:H, 0:W].astype(np.float32)
+    sky = np.zeros((H, W, 3), dtype=np.float32)
+    sky[:] = BG_RGB
+    for (fx, fy, rx, ry, rgb, alpha) in (
+        (0.78, 0.12, 0.38, 0.34, (40, 210, 235), 0.16),
+        (0.12, 0.88, 0.34, 0.38, (120, 90, 255), 0.15),
+        (0.92, 0.82, 0.30, 0.26, (255, 150, 90), 0.07),
+    ):
+        d2 = ((xx / W - fx) / rx) ** 2 + ((yy / H - fy) / ry) ** 2
+        wash = alpha * np.clip(1.0 - d2, 0.0, 1.0) ** 1.5
+        sky += wash[..., None] * (np.array(rgb, dtype=np.float32) - sky)
+    rng = np.random.default_rng(20261115)
+    for _ in range(90):
+        x, y = int(rng.uniform(0, W)), int(rng.uniform(0, H))
+        strength = rng.uniform(0.12, 0.6)
+        radius = 1 if rng.uniform() < 0.8 else 2
+        base = sky[y, x].copy()
+        cv2.circle(sky, (x, y), radius, tuple(float(v) for v in base + strength * (np.array((205, 225, 255)) - base)), -1, cv2.LINE_AA)
+    return np.clip(sky, 0, 255).astype(np.uint8)[..., ::-1].copy()  # RGB -> BGR
+
+
+BACKDROP = build_backdrop()
+
+
 def make_canvas(phase_t: float) -> np.ndarray:
-    """Clean dark orbital grid canvas with subtle moving longitude arc."""
-    canvas = np.full((H, W, 3), bgr(BG_RGB), dtype=np.uint8)
-    # Subtle coordinate grid (40px spacing clipped nicely)
+    """Observatory night sky with hairline coordinate grid and a slowly rotating orbital arc."""
+    canvas = BACKDROP.copy()
     for gx in range(80, W, 120):
-        cv2.line(canvas, (gx, 72), (gx, H - 56), bgr((13, 20, 33)), 1, cv2.LINE_AA)
+        cv2.line(canvas, (gx, 72), (gx, H - 56), bgr(GRID_RGB), 1, cv2.LINE_AA)
     for gy in range(90, H - 50, 120):
-        cv2.line(canvas, (64, gy), (W - 64, gy), bgr((13, 20, 33)), 1, cv2.LINE_AA)
-    # Rotating subtle orbital arc on top-right
+        cv2.line(canvas, (64, gy), (W - 64, gy), bgr(GRID_RGB), 1, cv2.LINE_AA)
     cx, cy = W - 120, 90
-    cv2.circle(canvas, (cx, cy), 340, bgr((18, 30, 50)), 1, cv2.LINE_AA)
-    cv2.circle(canvas, (cx, cy), 250, bgr((22, 42, 68)), 1, cv2.LINE_AA)
+    cv2.circle(canvas, (cx, cy), 340, bgr((22, 36, 60)), 1, cv2.LINE_AA)
+    cv2.circle(canvas, (cx, cy), 250, bgr((30, 52, 84)), 1, cv2.LINE_AA)
     ang = phase_t * 360.0
     cv2.ellipse(canvas, (cx, cy), (250, 250), 0, ang, ang + 65, bgr(ACCENT_RGB), 2, cv2.LINE_AA)
     return canvas
@@ -107,8 +135,9 @@ def draw_header_footer(pil_img: Image.Image, step_pill: str, pill_col: tuple, fo
     f_foot = load_font(14, bold=False, mono=True)
 
     # Top brand marker
-    d.ellipse([(64, 34), (74, 44)], fill=ACCENT_RGB)
-    d.text((84, 30), "TERRALENS", font=f_mono, fill=INK_RGB)
+    d.rounded_rectangle([(64, 26), (90, 52)], radius=8, fill=SURFACE2_RGB, outline=ACCENT_RGB, width=1)
+    d.line([(69, 44), (74, 38), (79, 41), (85, 32)], fill=ACCENT_RGB, width=2, joint="curve")
+    d.text((100, 31), "TERRALENS", font=f_mono, fill=INK_RGB)
 
     # Step badge on top right
     bw = d.textbbox((0, 0), step_pill, font=f_mono)[2] + 26
@@ -137,7 +166,7 @@ def render_beat1(lt: float, gt: float, c: dict) -> np.ndarray:
 
     # Card frame around plot
     cv2.rectangle(cv_img, (64, plot_y0 - 25), (W - 64, plot_y1 + 25), bgr(SURFACE_RGB), -1)
-    cv2.rectangle(cv_img, (64, plot_y0 - 25), (W - 64, plot_y1 + 25), bgr((30, 45, 70)), 1, cv2.LINE_AA)
+    cv2.rectangle(cv_img, (64, plot_y0 - 25), (W - 64, plot_y1 + 25), bgr(BORDER_RGB), 1, cv2.LINE_AA)
 
     n_pts = 110
     draw_n = max(2, int(n_pts * ease_out(min(1.0, lt * 1.6))))
@@ -200,7 +229,7 @@ def render_beat1(lt: float, gt: float, c: dict) -> np.ndarray:
             continue
         cx0 = 64 + idx * (cw + 16)
         cy0 = 556 + int((1.0 - appear) * 20)
-        d.rounded_rectangle([(cx0, cy0), (cx0 + cw, cy0 + 96)], radius=10, fill=SURFACE_RGB, outline=(34, 48, 72), width=1)
+        d.rounded_rectangle([(cx0, cy0), (cx0 + cw, cy0 + 96)], radius=10, fill=SURFACE_RGB, outline=BORDER_RGB, width=1)
         d.rectangle([(cx0, cy0 + 12), (cx0 + 4, cy0 + 84)], fill=ccol)
         d.text((cx0 + 20, cy0 + 18), ctitle, font=f_card_t, fill=INK_RGB)
         d.text((cx0 + 20, cy0 + 50), csub, font=f_card_s, fill=MUTED_RGB)
@@ -258,14 +287,14 @@ def render_beat2(lt: float, gt: float, c: dict) -> np.ndarray:
 
     # Right: 3 clean animated metric counters
     stats = [
-        (55697, "", c["b2_s1"], ACCENT_RGB, 0.10),
+        (BENCHMARK["cell_months"], "", c["b2_s1"], ACCENT_RGB, 0.10),
         (107, " nodes", c["b2_s2"], AMBER_RGB, 0.25),
         (45, " yrs", c["b2_s3"], EMERALD_RGB, 0.40),
     ]
     for idx, (target, unit, desc, col, delay) in enumerate(stats):
         prog = ease_out(max(0.0, (lt - delay) / 0.42))
         y0 = 235 + idx * 135
-        d.rounded_rectangle([(620, y0), (W - 64, y0 + 112)], radius=10, fill=SURFACE_RGB, outline=(34, 48, 72), width=1)
+        d.rounded_rectangle([(620, y0), (W - 64, y0 + 112)], radius=10, fill=SURFACE_RGB, outline=BORDER_RGB, width=1)
         d.rectangle([(620, y0 + 14), (625, y0 + 98)], fill=col)
         val = int(target * prog)
         val_str = f"{val:,}{unit}"
@@ -329,6 +358,7 @@ def render_beat3(lt: float, gt: float, c: dict) -> np.ndarray:
     f_sub = load_font(22, bold=False)
     f_pt = load_font(24, bold=True)
     f_pm = load_font(34, bold=True, mono=True)
+    f_pm_fit = load_font(29, bold=True, mono=True)  # the longest Spanish headline must stay inside its card
     f_ps = load_font(18, bold=False)
 
     rev = ease_out(min(1.0, lt * 3.0))
@@ -339,13 +369,13 @@ def render_beat3(lt: float, gt: float, c: dict) -> np.ndarray:
     wipe_done = lt > 0.45
     # Left panel copy
     d.text((98, 254), c["b3_lt"], font=f_pt, fill=INK_RGB)
-    d.text((98, 294), c["b3_lm_after"] if wipe_done else c["b3_lm_before"], font=f_pm, fill=AMBER_RGB if wipe_done else ROSE_RGB)
+    d.text((98, 297), c["b3_lm_after"] if wipe_done else c["b3_lm_before"], font=f_pm_fit, fill=AMBER_RGB if wipe_done else ROSE_RGB)
     d.text((98, 548), c["b3_ls"], font=f_ps, fill=MUTED_RGB)
 
     # Right panel copy
     rx0 = 64 + pw + 24
     d.text((rx0 + 34, 254), c["b3_rt"], font=f_pt, fill=INK_RGB)
-    d.text((rx0 + 34, 294), "+0.197 °C / dec", font=f_pm, fill=EMERALD_RGB)
+    d.text((rx0 + 34, 294), "+0.248 °C / dec", font=f_pm, fill=EMERALD_RGB)
     d.text((rx0 + 34, 548), c["b3_rs"], font=f_ps, fill=INK_RGB)
 
     draw_header_footer(pil, c["b3_pill"], AMBER_RGB, c["foot"], gt)
@@ -397,7 +427,7 @@ def render_beat4(lt: float, gt: float, c: dict) -> np.ndarray:
     # Big Future R2 Hero Metric Strip
     r2_prog = ease_out(max(0.0, (lt - 0.2) / 0.5))
     r2_val = BENCHMARK["nowcast_r2"] * r2_prog
-    d.rounded_rectangle([(64, 330), (W - 64, 444)], radius=10, fill=SURFACE_RGB, outline=(36, 52, 78), width=1)
+    d.rounded_rectangle([(64, 330), (W - 64, 444)], radius=10, fill=SURFACE_RGB, outline=BORDER_RGB, width=1)
     d.text((94, 354), f"{r2_val:.4f} R²", font=f_big, fill=EMERALD_RGB)
     d.text((430, 358), c["b4_r2_t"], font=f_ct, fill=INK_RGB)
     d.text((430, 392), c["b4_r2_s"], font=f_cs, fill=MUTED_RGB)
@@ -422,7 +452,7 @@ def render_beat4(lt: float, gt: float, c: dict) -> np.ndarray:
 # BEAT 5 (25.0s - 30.0s): CLOSING — TERRALENS & TEAM PROYECTO HAIL MARY
 # ==============================================================================
 def render_beat5(lt: float, gt: float, c: dict) -> np.ndarray:
-    cv_img = np.full((H, W, 3), bgr(BG_RGB), dtype=np.uint8)
+    cv_img = BACKDROP.copy()
 
     # Clean vector planet + glowing atmospheric horizon emblem
     cx, cy = W // 2, 245
@@ -485,23 +515,23 @@ def build_video(lang: str = "en"):
             "b1_sub": "Sin filtros estadísticos, memoria del suelo, cambios de sensor y picos El Niño parecen cambio real.",
             "b1_jump": "Salto Sensor 2001 (CERES)",
             "b1_cards": [
-                ("Persistencia (r₁)", "Infla falsos p < 0.05", ROSE_RGB),
+                ("Persistencia (r1)", "Infla falsos p < 0.05", ROSE_RGB),
                 ("Salto GEWEX SRB -> CERES", "Falso quiebre solar", AMBER_RGB),
                 ("Picos El Niño / 55 km", "Inclinan la recta", ACCENT_RGB),
             ],
             "b2_pill": "02 · DATOS ESPACIALES",
             "b2_h1": "45 años de la NASA en tres escalas reales.",
             "b2_sub": "De celdas NASA POWER de ~55 km a vegetación MODIS de 250 m y fotos de modelo a 1 km.",
-            "b2_s1": "Observaciones reales NASA 1981–2025",
+            "b2_s1": "Celdas-mes de NASA POWER, 1981–2025",
             "b2_s2": "Nodos globales + malla de 96 celdas",
             "b2_s3": "Series climáticas + teleconexión ENSO",
             "b3_pill": "03 · CÓMO SE RESOLVIÓ",
             "b3_h1": "Separamos ilusiones de tendencias reales.",
             "b3_sub": "Hamed-Rao + Pettitt + Test de Acker verifican qué señales sobreviven.",
             "b3_lt": "Humedad Paute (Trampa #1)",
-            "b3_lm_before": "p = 0.030  (¡Falsa Alerta!)",
-            "b3_lm_after": "p = 0.728  (Falso Positivo)",
-            "b3_ls": "Descartado al corregir memoria temporal r₁.",
+            "b3_lm_before": "p = 0.030 (¡Falsa alerta!)",
+            "b3_lm_after": "p = 0.728 (Falso positivo)",
+            "b3_ls": "Descartado al corregir memoria temporal r1.",
             "b3_rt": "Calentamiento Real Andino",
             "b3_rs": "Sobrevive al quitar los meses anómalos (p < 0.0001).",
             "b4_pill": "04 · ML HONESTO",
@@ -511,7 +541,7 @@ def build_video(lang: str = "en"):
             "b4_r2_t": "R² de test del nowcast (2019–2025)",
             "b4_r2_s": f"Persistencia sola: {BENCHMARK['persistence_r2']:.3f} · el pronóstico real gana poco",
             "b4_nodes": [
-                ("+0.197 °C/déc", "Calentamiento Andino Paute", EMERALD_RGB),
+                ("+0.248 °C/déc", "Calentamiento Andino (Altiplano)", EMERALD_RGB),
                 ("+0.209 vs -0.329", "Dipolo ENSO Sudamericano", ACCENT_RGB),
                 ("+0.579 °C/déc", "Amplificación Ártica Alaska", AMBER_RGB),
             ],
@@ -528,23 +558,23 @@ def build_video(lang: str = "en"):
             "b1_sub": "Unfiltered linear fits mistake soil memory, 2001 sensor shifts & El Niño spikes for secular change.",
             "b1_jump": "2001 CERES Sensor Jump",
             "b1_cards": [
-                ("Memory Noise (r₁)", "Inflates false p < 0.05", ROSE_RGB),
+                ("Memory Noise (r1)", "Inflates false p < 0.05", ROSE_RGB),
                 ("GEWEX SRB -> CERES Splice", "Fake solar step-change", AMBER_RGB),
                 ("El Niño & 55 km Blur", "Tilt the trend line", ACCENT_RGB),
             ],
             "b2_pill": "02 · MULTI-SCALE NASA",
             "b2_h1": "45 years of NASA data across three scales.",
             "b2_sub": "From ~55 km NASA POWER cells to 250 m MODIS vegetation and 1 km model snapshots.",
-            "b2_s1": "Real NASA observations (1981–2025)",
+            "b2_s1": "NASA POWER grid cell-months, 1981–2025",
             "b2_s2": "Global biomes + 96 regional grid cells",
             "b2_s3": "Full climate + NOAA ENSO record",
             "b3_pill": "03 · THE SOLUTION",
             "b3_h1": "Stripping noise to isolate true change.",
             "b3_sub": "Hamed-Rao persistence guards + Pettitt breakpoints + Acker outlier removal.",
             "b3_lt": "Paute Soil Moisture (Trap #1)",
-            "b3_lm_before": "p = 0.030  (Fake Alert!)",
-            "b3_lm_after": "p = 0.728  (False Positive)",
-            "b3_ls": "Collapses once autocorrelation r₁ is corrected.",
+            "b3_lm_before": "p = 0.030 (Fake alert!)",
+            "b3_lm_after": "p = 0.728 (False positive)",
+            "b3_ls": "Collapses once autocorrelation r1 is corrected.",
             "b3_rt": "Andean Structural Warming",
             "b3_rs": "Persists after removing the anomalous months (p < 0.0001).",
             "b4_pill": "04 · HONEST ML",
@@ -554,7 +584,7 @@ def build_video(lang: str = "en"):
             "b4_r2_t": "Nowcast test R² (2019–2025)",
             "b4_r2_s": f"Persistence alone: {BENCHMARK['persistence_r2']:.3f} · true forecasts gain little",
             "b4_nodes": [
-                ("+0.197 °C/dec", "Andean Warming (Paute)", EMERALD_RGB),
+                ("+0.248 °C/dec", "Andean Warming (Altiplano)", EMERALD_RGB),
                 ("+0.209 vs -0.329", "South American ENSO Dipole", ACCENT_RGB),
                 ("+0.579 °C/dec", "Arctic Polar Amplification", AMBER_RGB),
             ],
@@ -604,7 +634,13 @@ def build_video(lang: str = "en"):
     writer.release()
 
     # Encode universal H.264 Main Profile (yuv420p + faststart)
-    ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+    try:
+        import imageio_ffmpeg
+        ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+    except ImportError:
+        ffmpeg_exe = shutil.which("ffmpeg")
+        if ffmpeg_exe is None:
+            sys.exit("ffmpeg not found: install imageio-ffmpeg or ffmpeg")
     subprocess.run(
         [
             ffmpeg_exe, "-y", "-i", raw_tmp,
