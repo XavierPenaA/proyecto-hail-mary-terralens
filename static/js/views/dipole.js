@@ -3,19 +3,20 @@ import { getJson } from '../api.js';
 import { axis, baseOptions, renderChart } from '../charts.js';
 import { escapeHtml, fmtNum, pText, qText } from '../format.js';
 import { t } from '../i18n.js';
-import { decadeUnits, regionName, variableShort, verdictLabel, verdictTone } from '../labels.js';
+import { decadeUnits, qualifiedVerdict, regionName, variableShort, verdictLabel, verdictTone } from '../labels.js';
 import { state } from '../state.js';
 import { chartColors } from '../theme.js';
 
 const $ = (id) => document.getElementById(id);
 
 function regionCard(stats, regionId, variable) {
-  const tone = verdictTone(stats.verdict.code);
+  const code = qualifiedVerdict(stats.verdict.code, stats.warnings);
+  const tone = verdictTone(code);
   return `
     <div class="kpi-card">
-      <div class="kpi-label">${escapeHtml(regionName(regionId))}</div>
+      <div class="kpi-label">${escapeHtml(regionName(regionId))} <span class="tabular">${stats.period.join('–')}</span></div>
       <div><span class="kpi-value tabular">${fmtNum(stats.theil_sen_decade, 3, true)}</span> <span class="kpi-unit">${escapeHtml(decadeUnits(variable))}</span></div>
-      <div class="kpi-sub"><span class="tone-${tone}">${escapeHtml(verdictLabel(stats.verdict.code))}</span> <span class="tabular">${pText(stats.p_hamed_rao)}</span></div>
+      <div class="kpi-sub"><span class="tone-${tone}">${escapeHtml(verdictLabel(code))}</span> <span class="tabular">${pText(stats.p_hamed_rao)}</span></div>
       <div class="kpi-sub tabular">${escapeHtml(t('dipole.enso', { r: fmtNum(stats.enso.r_best, 2, true), lag: stats.enso.best_lag, q: qText(stats.enso.q_best) }))}</div>
     </div>`;
 }
@@ -26,6 +27,8 @@ function render(d) {
   const b = d.region_b_info.id;
   const cross = d.cross_correlation;
   const strong = d.r_during_strong_enso === null ? '—' : fmtNum(d.r_during_strong_enso, 2, true);
+  const trend = [d.stats_a, d.stats_b].some((stats) => qualifiedVerdict(stats.verdict.code, stats.warnings) === 'step_qualified')
+    ? 'step_qualified' : d.trend_relation;
 
   $('dipoleSummaryStrip').innerHTML = `
     ${regionCard(d.stats_a, a, variable)}
@@ -39,7 +42,7 @@ function render(d) {
     <div class="kpi-card">
       <div class="kpi-label">${escapeHtml(t('dipole.diagnosis'))}</div>
       <div style="font-size:14px;font-weight:600;color:var(--text-primary);">${escapeHtml(t(`relation.enso.${d.enso_relation}`))}</div>
-      <div class="kpi-sub">${escapeHtml(t(`relation.trend.${d.trend_relation}`))}</div>
+      <div class="kpi-sub">${escapeHtml(t(`relation.trend.${trend}`))}</div>
     </div>`;
 
   const c = chartColors();
@@ -71,9 +74,13 @@ function render(d) {
 export async function loadDipole() {
   const data = await getJson(
     '/api/dipole',
-    { region_a: state.dipoleA, region_b: state.dipoleB, variable: state.dipoleVariable },
+    {
+      region_a: state.dipoleA, region_b: state.dipoleB, variable: state.dipoleVariable,
+      start_year: state.startYear, end_year: state.endYear, homogeneous_ceres: state.homogeneous,
+    },
     { key: 'dipole' },
   );
+  $('dipoleResults').hidden = false;
   render(data);
   return data;
 }

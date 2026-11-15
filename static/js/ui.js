@@ -1,6 +1,6 @@
 /** Shared interface behaviour: views (ARIA tabs), loading state, error alert, drawer, highlights. */
 import { t } from './i18n.js';
-import { SUMMARY_VIEWS } from './state.js';
+import { state, SUMMARY_VIEWS } from './state.js';
 import { prefersReducedMotion } from './theme.js';
 
 const $ = (id) => document.getElementById(id);
@@ -20,7 +20,10 @@ export function initAlert() {
 export function showError(err, retry = null) {
   const status = err?.status;
   const key = status === 0 ? 'alert.network' : status === 429 ? 'alert.rateLimited' : status >= 500 ? 'alert.server' : 'alert.request';
-  $('appAlertText').textContent = t(key, { message: err?.message || '' });
+  const detail = err?.detail;
+  $('appAlertText').textContent = detail?.code === 'short_effective_window'
+    ? t('alert.effectiveWindow', detail)
+    : t(key, { message: err?.message || '' });
   retryHandler = retry;
   $('btnAlertRetry').hidden = !retry;
   $('appAlert').hidden = false;
@@ -79,9 +82,17 @@ export function showView(view) {
     if (active) $('currentViewTitle').textContent = btn.querySelector('[data-i18n]').textContent;
   });
   document.querySelectorAll('.workspace-view').forEach((panel) => panel.classList.toggle('active', panel.id === view));
-  $('summarySection').hidden = !SUMMARY_VIEWS.includes(view);
+  document.querySelectorAll('[data-series-control]').forEach((control) => { control.hidden = view === 'tab-dipole'; });
+  syncSeriesAvailability();
   $('viewGuideText').textContent = t(`viewGuide.${view}`);
   closeDrawer($('workspace'));
+}
+
+export function syncSeriesAvailability() {
+  const available = Boolean(state.dashboard);
+  $('summarySection').hidden = !available || !SUMMARY_VIEWS.includes(state.view);
+  SUMMARY_VIEWS.forEach((view) => { $(view).hidden = !available; });
+  $('btnExportCsv').disabled = !available;
 }
 
 // ---------------------------------------------------------------------------- Drawer (small screens)

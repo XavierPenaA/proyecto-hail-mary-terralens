@@ -8,7 +8,7 @@ import { applyStaticTranslations, getLang, initialLanguage, loadLocales, setLang
 import { regionName, units, variableShort, zoneLabel } from './labels.js';
 import { readUrlState, setExpert, state, writeUrlState } from './state.js';
 import { applyChartDefaults, isLight, onThemeChange, setTheme } from './theme.js';
-import { clearError, closeDrawer, fillSelect, highlight, initAlert, initDrawer, initTabs, setSwitch, showError, showView, withLoading } from './ui.js';
+import { clearError, closeDrawer, fillSelect, highlight, initAlert, initDrawer, initTabs, setSwitch, showError, showView, syncSeriesAvailability, withLoading } from './ui.js';
 import { renderAcker } from './views/acker.js';
 import { renderCaseList, renderCasePanel } from './views/cases.js';
 import { loadDipole } from './views/dipole.js';
@@ -117,11 +117,17 @@ async function refreshDashboard() {
         },
         { key: 'dashboard' },
       ),
-    { onError: (err) => showError(err, refreshDashboard) },
+    { onError: (err) => {
+      state.dashboard = null;
+      syncSeriesAvailability();
+      syncControls();
+      if (state.view !== 'tab-dipole') showError(err, err.status === 422 ? null : refreshDashboard);
+    } },
   );
   if (!data) return;
-  clearError();
+  if (state.view !== 'tab-dipole') clearError();
   state.dashboard = data;
+  syncSeriesAvailability();
   renderDashboardViews();
   syncControls();
 }
@@ -141,17 +147,26 @@ const VIEW_LOADERS = {
 };
 
 async function loadActiveView() {
-  if (state.view === 'tab-telemetry') renderTelemetry(state.manifest);
-  const loader = VIEW_LOADERS[state.view];
+  const view = state.view;
+  if (view === 'tab-telemetry') renderTelemetry(state.manifest);
+  const loader = VIEW_LOADERS[view];
   if (!loader) return;
-  const data = await withLoading(loader, { onError: (err) => showError(err, loadActiveView) });
-  if (data) clearError();
+  const data = await withLoading(loader, { onError: (err) => {
+    if (state.view !== view) return;
+    if (view === 'tab-dipole') $('dipoleResults').hidden = true;
+    showError(err, err.status === 422 ? null : loadActiveView);
+  } });
+  if (data && state.view === view && (view === 'tab-dipole' || state.dashboard)) clearError();
 }
 
 async function selectView(view) {
+  const leavingComparison = state.view === 'tab-dipole' && view !== state.view;
   state.view = view;
+  if (leavingComparison) state.dashboard = null;
   showView(view);
+  clearError();
   persistUrl();
+  if (leavingComparison || (!state.dashboard && view !== 'tab-dipole')) await refreshDashboard();
   await loadActiveView();
   if (view === 'tab-multiscale') invalidateMapSize();
 }
@@ -163,6 +178,10 @@ async function changeSeries(changes) {
   if (leavesCase) closeCase();
   syncControls();
   persistUrl();
+  if (state.view === 'tab-dipole') {
+    await loadActiveView();
+    return;
+  }
   await refreshDashboard();
   if (state.view === 'tab-multiscale') await loadActiveView();
 }
@@ -270,6 +289,7 @@ function wireEvents() {
     state[field] = e.target.value;
     persistUrl();
     if (state.dipoleA === state.dipoleB) {
+      $('dipoleResults').hidden = true;
       showError({ status: 422, message: t('dipole.sameRegion') });
       return;
     }
@@ -351,7 +371,7 @@ async function init() {
   showView(state.view);
   persistUrl();
 
-  await refreshDashboard();
+  if (state.view !== 'tab-dipole') await refreshDashboard();
   await loadActiveView();
   const current = caseById(state.caseId);
   if (current) highlight(current.steps[state.caseStep]?.target);

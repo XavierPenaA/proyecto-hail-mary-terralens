@@ -57,6 +57,36 @@ def test_solar_window_is_moved_to_the_ceres_era_when_the_guard_is_on(client):
     assert off["known_break"]["break_date"] == "2001-01"
     assert "known_splice_in_window" in off["warnings"]
 
+@pytest.mark.parametrize("path", ["/api/full-dashboard/EC_Andes_Paute", "/api/dipole"])
+@pytest.mark.parametrize("start,end", [(1981, 1990), (1993, 2002)])
+def test_solar_window_must_be_long_enough_after_applying_the_guard(client, path, start, end):
+    result = client.get(path, params={"variable": "ALLSKY_SFC_SW_DWN", "start_year": start, "end_year": end})
+    assert result.status_code == 422
+    detail = result.json()["detail"]
+    assert detail["code"] == "short_effective_window"
+    assert detail["first_year"] == 2001
+
+
+def test_dashboard_counts_only_months_removed_from_the_solar_series(client):
+    path = "/api/full-dashboard/EC_Coast_Guayas"
+    params = {"variable": "ALLSKY_SFC_SW_DWN"}
+    baseline = client.get(path, params=params).json()
+    filtered = client.get(path, params={**params, "exclude_ml_extremes": True}).json()
+    before = {row["date"] for row in baseline["monthly_series"]}
+    after = {row["date"] for row in filtered["monthly_series"]}
+    assert 0 < len(before - after) == filtered["filters"]["n_excluded_months"]
+
+
+def test_dipole_uses_the_requested_eras_when_solar_guard_is_off(client):
+    res = client.get("/api/dipole", params={
+        "variable": "ALLSKY_SFC_SW_DWN", "start_year": 1984, "end_year": 1993, "homogeneous_ceres": False,
+    })
+    assert res.status_code == 200
+    body = res.json()
+    assert body["stats_a"]["period"] == body["stats_b"]["period"] == [1984, 1993]
+    assert body["series"][0]["date"] == "1984-01"
+    assert body["series"][-1]["date"] == "1993-12"
+
 
 @pytest.mark.parametrize(
     "path, params, status",

@@ -3,10 +3,11 @@
  * for a view is ever rendered (no race between slow and fast requests).
  */
 export class ApiError extends Error {
-  constructor(message, status) {
+  constructor(message, status, detail = null) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.detail = detail;
   }
 }
 
@@ -19,6 +20,7 @@ function describeDetail(body) {
   if (!detail) return '';
   if (typeof detail === 'string') return detail;
   if (Array.isArray(detail)) return detail.map((d) => d.msg || JSON.stringify(d)).join('; ');
+  if (detail.message) return detail.message;
   return JSON.stringify(detail);
 }
 
@@ -41,7 +43,7 @@ export async function getJson(path, params = {}, { key } = {}) {
     const response = await fetch(buildUrl(path, params), { signal: controller.signal });
     const body = await response.json().catch(() => null);
     if (controller.signal.aborted) throw new DOMException('Superseded by a newer request', 'AbortError');
-    if (!response.ok) throw new ApiError(describeDetail(body) || response.statusText, response.status);
+    if (!response.ok) throw new ApiError(describeDetail(body) || response.statusText, response.status, body?.detail);
     return body;
   } catch (err) {
     if (isAbortError(err) || err instanceof ApiError) throw err;

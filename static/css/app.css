@@ -447,6 +447,10 @@ body {
   gap: 12px;
 }
 
+.series-controls:has([data-series-control][hidden]) {
+  grid-template-columns: minmax(0, max-content);
+}
+
 .analysis-controls {
   display: flex;
   align-items: center;

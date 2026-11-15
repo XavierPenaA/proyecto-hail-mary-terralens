@@ -1,13 +1,12 @@
 /** Plain-language answer card and the four key metric cards for the selected series. */
 import { fmtNum, fmtP, pText } from '../format.js';
 import { pick, t } from '../i18n.js';
-import { decadeUnits, regionName, units, variableShort, verdictLabel, verdictTone, warningLabel } from '../labels.js';
+import { decadeUnits, qualifiedVerdict, regionName, units, variableShort, verdictLabel, verdictTone, warningLabel } from '../labels.js';
 import { token } from '../theme.js';
 
 const $ = (id) => document.getElementById(id);
 
-function answerSentence(d) {
-  const code = d.verdict.code;
+function answerSentence(d, code) {
   const slope = d.monthly_mk.theil_sen_decade;
   // "rises 0.2" / "falls 0.2": the verb carries the sign, except when the trend is rejected.
   const verbCarriesSign = code.startsWith('sig_') || code.startsWith('marginal_');
@@ -53,17 +52,18 @@ function renderSparkline(values, label) {
 
 export function renderSummary(d) {
   const code = d.variable_info.code;
-  const tone = verdictTone(d.verdict.code);
+  const verdictCode = qualifiedVerdict(d.verdict.code, d.warnings);
+  const tone = verdictTone(verdictCode);
 
   $('answerKicker').textContent = `${regionName(d.region.id)} · ${variableShort(code)} · ${d.year_start}–${d.year_end}`;
-  $('answerText').textContent = answerSentence(d);
+  $('answerText').textContent = answerSentence(d, verdictCode);
   $('answerContext').textContent = `${pick(d.variable_info.explainer)} ${pick(d.region.summary)}`;
   $('answerWarnings').replaceChildren(
     ...warningBadges(d).map((text) => Object.assign(document.createElement('span'), { className: 'badge badge-warn', textContent: text })),
   );
   const verdict = $('answerVerdict');
   verdict.className = `badge tone-${tone}`;
-  verdict.textContent = verdictLabel(d.verdict.code);
+  verdict.textContent = verdictLabel(verdictCode);
   renderSparkline(d.annual_series.map((r) => r.annual_anomaly), t('kpi.sparklineAria', { from: d.year_start, to: d.year_end }));
 
   // Trend

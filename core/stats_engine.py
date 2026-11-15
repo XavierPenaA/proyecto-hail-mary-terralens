@@ -338,6 +338,8 @@ def known_breakpoint_test(
     """
     mask = np.isfinite(y)
     v = np.asarray(y, dtype=float)[mask]
+    if len(v) < 2 * MIN_MONTHS_EACH_SIDE_OF_BREAK:
+        return None
     valid_dates = np.asarray([d for d, m in zip(dates, mask) if m])
     after = valid_dates >= break_date
     n_after = int(after.sum())
@@ -602,10 +604,13 @@ def compare_regional_dipole(
     oni_df: Optional[pd.DataFrame] = None,
     start_year: int = 1981,
     end_year: int = 2025,
+    known_break_date: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Compares two regions: anomaly cross-correlation, ENSO polarity and trend directions."""
-    res_a = analyze_single_variable(df_a, variable, oni_df=oni_df, start_year=start_year, end_year=end_year)
-    res_b = analyze_single_variable(df_b, variable, oni_df=oni_df, start_year=start_year, end_year=end_year)
+    res_a = analyze_single_variable(df_a, variable, oni_df=oni_df, start_year=start_year, end_year=end_year,
+                                    known_break_date=known_break_date)
+    res_b = analyze_single_variable(df_b, variable, oni_df=oni_df, start_year=start_year, end_year=end_year,
+                                    known_break_date=known_break_date)
 
     ser_a = res_a["monthly_series"][["date", "year", "month", "anomaly", "z_score"]].rename(
         columns={"anomaly": "anom_a", "z_score": "z_a"}

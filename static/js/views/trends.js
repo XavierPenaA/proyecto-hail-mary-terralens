@@ -3,7 +3,7 @@ import { axis, baseOptions, renderChart } from '../charts.js';
 import { escapeHtml, fmtNum, fmtP, pText } from '../format.js';
 import { t } from '../i18n.js';
 import {
-  decadeUnits, monthLabel, regionName, seasonLabel, units, variableName, variableShort, verdictLabel, verdictTone, warningLabel,
+  decadeUnits, monthLabel, qualifiedVerdict, regionName, seasonLabel, units, variableName, variableShort, verdictLabel, verdictTone, warningLabel,
 } from '../labels.js';
 import { chartColors } from '../theme.js';
 
@@ -105,14 +105,20 @@ function verdictCell(code) {
 function renderScan(d, onSelectVariable) {
   const active = d.variable_info.code;
   const tbody = $('fdrScanTableBody');
+  const focusedVariable = tbody.contains(document.activeElement) ? document.activeElement.dataset.variable : null;
   tbody.replaceChildren();
+  let rowToFocus;
   d.auto_scan.rows.forEach((r) => {
     const tr = document.createElement('tr');
     tr.tabIndex = 0;
+    tr.dataset.variable = r.variable;
+    if (r.variable === focusedVariable) rowToFocus = tr;
     tr.style.cursor = 'pointer';
     if (r.variable === active) tr.setAttribute('aria-current', 'true');
     if (r.variable === active) tr.style.background = 'var(--accent-soft)';
     const warnings = r.warnings.length ? ` <span class="tone-warn" title="${escapeHtml(r.warnings.map((w) => warningLabel(w, { date: r.pettitt_date })).join(' '))}">⚑</span>` : '';
+    const code = r.verdict_code.startsWith('sig_') && !r.significant_after_fdr
+      ? 'fdr_not_significant' : qualifiedVerdict(r.verdict_code, r.warnings);
     tr.innerHTML = `
       <td style="color:var(--text-primary);font-weight:600;">${escapeHtml(variableShort(r.variable))} <span class="tabular" style="color:var(--text-tertiary);font-size:11px;">${r.period[0]}–${r.period[1]}</span></td>
       <td class="num" style="color:var(--text-primary);font-weight:600;">${fmtNum(r.theil_sen_decade, 4, true)} <span style="color:var(--text-tertiary);font-size:11px;">${escapeHtml(decadeUnits(r.variable))}</span></td>
@@ -125,12 +131,13 @@ function renderScan(d, onSelectVariable) {
       <td class="num expert-only">${fmtP(r.p_annual_mk)}</td>
       <td class="tabular expert-only">${escapeHtml(r.pettitt_date || '—')} <span style="color:var(--text-tertiary);">(${pText(r.pettitt_p, { bootstrap: true })})</span></td>
       <td class="num expert-only">${fmtNum(r.r_oni, 2, true)}</td>
-      <td>${verdictCell(r.verdict_code)}${warnings}</td>`;
+      <td>${verdictCell(code)}${warnings}</td>`;
     const select = () => onSelectVariable(r.variable);
     tr.addEventListener('click', select);
     tr.addEventListener('keydown', (e) => (e.key === 'Enter' || e.key === ' ') && (e.preventDefault(), select()));
     tbody.appendChild(tr);
   });
+  rowToFocus?.focus({ preventScroll: true });
 
   const group = d.auto_scan.coincident_breaks;
   $('coincidentNote').hidden = !group;

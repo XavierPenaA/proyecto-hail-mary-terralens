@@ -15,6 +15,7 @@ export function exportSeriesCsv(d) {
     `# period: ${d.year_start}-${d.year_end}, months analysed: ${d.n_months}`,
     '# anomaly = value minus the mean of the same calendar month; z_score = anomaly / std of that month',
     `# Theil-Sen trend: ${d.monthly_mk.theil_sen_decade.toFixed(4)} ${v.decade_units}; Hamed-Rao p: ${fmtP(d.monthly_mk.p_hamed_rao)}; verdict: ${d.verdict.code}`,
+    `# trend warnings: ${d.warnings.join(', ') || 'none'}`,
     `# anomalous months removed: ${d.filters.n_excluded_months}`,
     `# generated: ${new Date().toISOString()}`,
     '# data: NASA POWER (https://power.larc.nasa.gov/), NASA Earthdata open data policy',

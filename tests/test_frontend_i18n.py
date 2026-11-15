@@ -10,7 +10,7 @@ LOCALES = {lang: json.loads((STATIC / "i18n" / f"{lang}.json").read_text(encodin
 # Families of keys built at run time from API codes (t(`verdict.${code}`) and similar).
 DYNAMIC_FAMILIES = {
     "verdict": ["sig_increase", "sig_decrease", "marginal_increase", "marginal_decrease", "not_significant", "autocorr_rejected"],
-    "answer": ["sig_increase", "sig_decrease", "marginal_increase", "marginal_decrease", "not_significant", "autocorr_rejected"],
+    "answer": ["sig_increase", "sig_decrease", "marginal_increase", "marginal_decrease", "not_significant", "autocorr_rejected", "step_qualified"],
     "direction": ["increase", "decrease"],
     "warning": ["step_dominated", "known_splice_in_window"],
     "shape": ["step", "trend", "inconclusive"],
@@ -24,7 +24,7 @@ DYNAMIC_FAMILIES = {
     "feature": ["PREC", "T2M", "RH2M", "SW", "ONI"],
     "detector": ["isolation_forest", "lof", "mahalanobis"],
     "relation.enso": ["opposite", "same_sign", "not_both_significant"],
-    "relation.trend": ["opposite", "same_direction", "not_both_significant"],
+    "relation.trend": ["opposite", "same_direction", "not_both_significant", "step_qualified"],
     "model": ["PersistenceBaseline", "RidgeRegression", "RandomForestRegressor", "HistGradientBoostingRegressor"],
     "viewGuide": ["tab-trends", "tab-ml", "tab-acker", "tab-dipole", "tab-multiscale", "tab-telemetry", "tab-guide", "tab-about"],
 }

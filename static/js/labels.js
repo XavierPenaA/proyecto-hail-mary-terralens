@@ -33,9 +33,16 @@ export const decadeUnits = (code) => {
 
 /** 'sig' | 'marginal' | 'none': drives the tone classes (always paired with text). */
 export function verdictTone(code) {
+  if (code === 'step_qualified') return 'marginal';
   if (code?.startsWith('sig_')) return 'sig';
   if (code?.startsWith('marginal_')) return 'marginal';
   return 'none';
+}
+
+export function qualifiedVerdict(code, warnings) {
+  const hasSlope = code.startsWith('sig_') || code.startsWith('marginal_');
+  return hasSlope && warnings.some((warning) => warning === 'step_dominated' || warning === 'known_splice_in_window')
+    ? 'step_qualified' : code;
 }
 
 export const verdictLabel = (code) => t(`verdict.${code}`);

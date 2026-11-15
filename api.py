@@ -143,6 +143,18 @@ class YearWindow:
         self.start_year = start_year
         self.end_year = end_year
 
+    def effective_start(self, variable: str, homogeneous_ceres: bool) -> int:
+        start = analysis_start_year(variable, self.start_year, homogeneous_ceres)
+        if self.end_year - start + 1 < MIN_WINDOW_YEARS:
+            raise HTTPException(status_code=422, detail={
+                "code": "short_effective_window",
+                "first_year": start,
+                "end_year": self.end_year,
+                "minimum_years": MIN_WINDOW_YEARS,
+                "message": f"Choose at least {MIN_WINDOW_YEARS} available years starting in {start} or later.",
+            })
+        return start
+
 
 # ---------------------------------------------------------------------------
 # Serialization helpers
@@ -238,6 +250,7 @@ def get_full_region_dashboard(
     exclude_ml_extremes: bool = Query(False),
     homogeneous_ceres: bool = Query(True),
 ) -> Dict[str, Any]:
+    start = window.effective_start(variable, homogeneous_ceres)
     detective = svc.ml_detective(region_id, window.start_year, window.end_year)
     excluded = tuple(detective["extreme_dates"]) if exclude_ml_extremes else ()
 
@@ -253,10 +266,10 @@ def get_full_region_dashboard(
         "window": {
             "requested": [window.start_year, window.end_year],
             "analysed": [res_active["year_start"], res_active["year_end"]],
-            "start_moved_for_variable": analysis_start_year(variable, window.start_year, homogeneous_ceres) != window.start_year,
+            "start_moved_for_variable": start != window.start_year,
         },
         "filters": {"exclude_ml_extremes": exclude_ml_extremes, "homogeneous_ceres": homogeneous_ceres,
-                    "n_excluded_months": len(excluded)},
+                    "n_excluded_months": res_baseline["n_months"] - res_active["n_months"]},
         **_trend_payload(res_active),
         "baseline_mk": res_baseline["monthly_mk"],
         "monthly_series": _monthly_series(res_active, variable),
@@ -273,6 +286,7 @@ def compare_dipole_endpoint(
     region_b: str = Query("BR_Amazon_Manaus"),
     variable: str = Query("PRECTOTCORR"),
     window: YearWindow = Depends(),
+    homogeneous_ceres: bool = Query(True),
 ) -> Dict[str, Any]:
     _check_region(region_a)
     _check_region(region_b)
@@ -280,7 +294,8 @@ def compare_dipole_endpoint(
     if region_a == region_b:
         raise HTTPException(status_code=422, detail="Choose two different regions.")
 
-    res = svc.dipole(region_a, region_b, variable, window.start_year, window.end_year)
+    start = window.effective_start(variable, homogeneous_ceres)
+    res = svc.dipole(region_a, region_b, variable, start, window.end_year, homogeneous_ceres)
 
     def _stats(r: Dict[str, Any]) -> Dict[str, Any]:
         enso = r["enso"]

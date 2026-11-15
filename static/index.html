@@ -142,7 +142,7 @@
             <button id="btnTheme" class="util-btn" data-i18n-title="ctrl.theme.help" title="Switch light or dark theme">
               <span id="themeLabel">Light</span>
             </button>
-            <button id="btnExportCsv" class="util-btn" data-i18n-title="ctrl.csv.help" title="Download the monthly series as CSV">
+            <button id="btnExportCsv" class="util-btn" data-series-control data-i18n-title="ctrl.csv.help" title="Download the monthly series as CSV">
               <span>CSV</span>
             </button>
           </div>
@@ -155,11 +155,11 @@
         </div>
         <div class="command-bar">
           <div class="series-controls">
-            <div class="cmd-field">
+            <div class="cmd-field" data-series-control>
               <label class="cmd-field-label" for="regionSelect" data-i18n="ctrl.region">Region</label>
               <div class="cmd-field-row"><select id="regionSelect" class="ctrl-select"></select></div>
           </div>
-          <div class="cmd-field">
+            <div class="cmd-field" data-series-control>
             <label class="cmd-field-label" for="variableSelect" data-i18n="ctrl.variable">Variable</label>
             <div class="cmd-field-row"><select id="variableSelect" class="ctrl-select"></select></div>
           </div>
@@ -188,7 +188,7 @@
             </span>
           </button>
 
-          <button id="btnExcludeExtremes" class="cmd-switch" role="switch" aria-checked="false"
+            <button id="btnExcludeExtremes" class="cmd-switch" data-series-control role="switch" aria-checked="false"
             data-i18n-title="ctrl.extremes.help" title="Recompute the trend without the months flagged as multivariate anomalies.">
             <span class="switch-pill"><span class="switch-thumb"></span></span>
             <span class="switch-text-col">
@@ -478,9 +478,11 @@
                 </div>
               </div>
             </div>
-            <div class="kpi-grid" id="dipoleSummaryStrip"></div>
-            <div id="dipoleChartPanel">
-              <div class="chart-box"><canvas id="dipoleChart" role="img"></canvas></div>
+            <div class="prose-block" id="dipoleResults" hidden>
+              <div class="kpi-grid" id="dipoleSummaryStrip"></div>
+              <div id="dipoleChartPanel">
+                <div class="chart-box"><canvas id="dipoleChart" role="img"></canvas></div>
+              </div>
             </div>
           </div>
         </div>

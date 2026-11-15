@@ -124,8 +124,10 @@ def coincident_breaks(rows: List[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
 def auto_scan(region_id: str, homogeneous_splice: bool = True) -> Dict[str, Any]:
     """Full-period scan of every variable with Benjamini-Hochberg q-values and coincident breaks."""
     rows = []
+    p_values = []
     for variable in VARIABLES:
         res = variable_analysis(region_id, variable, DATA_START_YEAR, DATA_END_YEAR, homogeneous_splice)
+        p_values.append(res["monthly_mk"]["p_hamed_rao"])
         rows.append(
             {
                 "variable": variable,
@@ -145,7 +147,7 @@ def auto_scan(region_id: str, homogeneous_splice: bool = True) -> Dict[str, Any]
                 "warnings": res["warnings"],
             }
         )
-    for row, q in zip(rows, benjamini_hochberg_fdr([r["p_hamed_rao"] for r in rows])):
+    for row, q in zip(rows, benjamini_hochberg_fdr(p_values)):
         row["q_fdr"] = round(q, 6)
         row["significant_after_fdr"] = bool(q < SIGNIFICANCE_ALPHA and row["verdict_code"].startswith("sig_"))
     return {"rows": rows, "coincident_breaks": coincident_breaks(rows)}
@@ -159,15 +161,17 @@ def grid_trends(variable: str) -> pd.DataFrame:
     return load_ecuador_regional_grid_trends(variable)
 
 
-def dipole(region_a: str, region_b: str, variable: str, start_year: int, end_year: int) -> Dict[str, Any]:
-    return _dipole(region_a, region_b, variable, analysis_start_year(variable, start_year, True), end_year)
+def dipole(region_a: str, region_b: str, variable: str, start_year: int, end_year: int,
+           homogeneous_splice: bool = True) -> Dict[str, Any]:
+    return _dipole(region_a, region_b, variable, analysis_start_year(variable, start_year, homogeneous_splice), end_year)
 
 
 @lru_cache(maxsize=128)
 def _dipole(region_a: str, region_b: str, variable: str, start: int, end: int) -> Dict[str, Any]:
     df_a, _ = region_data(region_a)
     df_b, _ = region_data(region_b)
-    return compare_regional_dipole(df_a, df_b, variable, oni_df=oni(), start_year=start, end_year=end)
+    return compare_regional_dipole(df_a, df_b, variable, oni_df=oni(), start_year=start, end_year=end,
+                                  known_break_date=known_break_date(variable))
 
 
 def warm_up(first_region: str = "EC_Andes_Paute") -> None:
